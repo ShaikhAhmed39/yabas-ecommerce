@@ -15,8 +15,6 @@ export function GoldTicker() {
 
   const purityRows = [
     { label: '24 Carat Pure Gold', perGram: goldPrice?.price_per_gram_24k ?? 0 },
-    { label: '22 Carat Gold', perGram: goldPrice?.price_per_gram_22k ?? 0 },
-    { label: '18 Carat Gold', perGram: goldPrice?.price_per_gram_18k ?? 0 },
   ];
 
   return (
@@ -34,7 +32,7 @@ export function GoldTicker() {
             <TrendingUp className="h-3.5 w-3.5 text-gold-300 animate-pulse" />
             <span className="flex items-center gap-1.5">
               <span className="text-base">✨</span>
-              Check Live Mumbai Gold Rate
+              Check Today&apos;s Mumbai 24K Gold Rate
               <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-y-0.5" />
             </span>
           </button>
@@ -57,10 +55,10 @@ export function GoldTicker() {
             <div className="bg-gradient-to-br from-onyx-300 to-onyx-400 px-5 py-5 flex items-center justify-between">
               <div>
                 <h3 className="font-display text-lg font-bold text-cream-100">
-                  Mumbai Gold Rate
+                  Mumbai, Maharashtra · 24K Gold
                 </h3>
                 <p className="text-xs text-cream-300 mt-0.5">
-                  Live reference values · Updated every minute
+                  Updated 3 times a day on weekdays
                 </p>
               </div>
               <button
@@ -77,7 +75,7 @@ export function GoldTicker() {
                 <div className="flex items-center justify-center py-12">
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-10 h-10 rounded-full border-2 border-gold-200 border-t-gold-400 animate-spin" />
-                    <p className="text-sm text-onyx-300">Fetching live rates...</p>
+                    <p className="text-sm text-onyx-300">Fetching gold rate...</p>
                   </div>
                 </div>
               ) : goldPrice ? (
@@ -110,12 +108,17 @@ export function GoldTicker() {
                   {/* Footer note */}
                   <div className="mt-4 pt-3 border-t border-gold-200/30">
                     <p className="text-[11px] text-onyx-300 leading-relaxed">
-                      Values are indicative market reference rates for pure gold.
-                      Actual jewellery pricing may vary based on making charges,
-                      wastage, and GST.
+                      Indicative 24K gold rate per gram for Mumbai, Maharashtra.
+                      Prices vary by city and state, so please check your nearest
+                      jeweller for the exact rate. Jewellery pricing also varies
+                      with making charges, wastage and GST.
                     </p>
                     <p className="text-[10px] text-onyx-100 mt-2">
-                      Last updated: {new Date(goldPrice.timestamp).toLocaleTimeString('en-IN', {
+                      Last updated:{' '}
+                      {new Date(goldPrice.timestamp).toLocaleString('en-IN', {
+                        timeZone: 'Asia/Kolkata',
+                        day: 'numeric',
+                        month: 'short',
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
@@ -124,7 +127,7 @@ export function GoldTicker() {
                 </>
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-sm text-onyx-300">Live gold rate temporarily unavailable.</p>
+                  <p className="text-sm text-onyx-300">Gold rate temporarily unavailable.</p>
                 </div>
               )}
             </div>
