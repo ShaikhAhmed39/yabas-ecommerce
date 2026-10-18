@@ -542,7 +542,7 @@ if (!updatedOrder) {
 
       if (updateError) throw updateError;
       if (!data) throw new Error('No order was updated. Supabase may be blocking this update through Row Level Security (RLS).');
-      setOrders((current) => current.map((item) => item.id === order.id ? { ...item, delivery_status: data.delivery_status, delivered_at: data.delivered_at } : item));
+      setOrders((current) => current.map((item) => item.id === order.id ? { ...item, delivery_status: updatedOrder.delivery_status, status: updatedOrder.delivery_status, delivered_at: updatedOrder.delivered_at } : item));
       setSuccess(`Order ${order.id.slice(0, 8)} delivery status updated to ${label}.`);
     } catch (err: any) {
       setError(err?.message || 'Could not update delivery status. Check your admin RLS policy.');

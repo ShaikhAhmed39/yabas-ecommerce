@@ -18,7 +18,7 @@ interface OrderItem {
   quantity: number;
 }
 
-interface Order {
+export interface Order {
   id: string;
   user_id: string | null;
   total_amount: number | string;
@@ -29,7 +29,18 @@ interface Order {
   delivered_at: string | null;
   created_at: string | null;
   items: OrderItem[];
+  // === THIS NEW PROPERTY PREVENTS TYPESCRIPT BUILD ERRORS ===
+  return_request?: {
+    id: string;
+    order_id: string;
+    status: string;
+    reason: string;
+    description: string;
+    refund_amount: number | null;
+    photo_paths: string[];
+  } | null;
 }
+
 
 interface MyOrdersProps {
   onBack: () => void;
@@ -104,9 +115,9 @@ export function MyOrders({
       setRefreshing(false);
       return;
     }
-
     const orderIds = fetchedOrders.map((order) => order.id);
 
+    // 1. Fetch order items cleanly
     const { data: itemData, error: itemError } = await supabase
       .from('order_items')
       .select(
@@ -122,13 +133,28 @@ export function MyOrders({
       return;
     }
 
+    // 2. Fetch return requests using verified columns
+    const { data: returnData, error: returnError } = await supabase
+      .from('return_requests')
+      .select('id, order_id, status, reason, description, refund_amount, photo_paths')
+      .in('order_id', orderIds);
+
+    if (returnError) {
+      console.error("Supabase Return Request Query Error:", returnError.message);
+    }
+
     const items = (itemData || []) as OrderItem[];
 
+    // 3. Merge both datasets into your React state array immutably
     setOrders(
-      fetchedOrders.map((order) => ({
-        ...order,
-        items: items.filter((item) => item.order_id === order.id),
-      })),
+      fetchedOrders.map((order) => {
+        const matchingReturn = (returnData || []).find((ret) => ret.order_id === order.id);
+        return {
+          ...order,
+          items: items.filter((item) => item.order_id === order.id),
+          return_request: matchingReturn || null // Injects tracking record object straight into rows
+        };
+      }),
     );
 
     setLoading(false);
@@ -281,24 +307,22 @@ export function MyOrders({
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stone-100 bg-stone-50/70 p-5">
                     <div>
-                      <p className="text-xs text-stone-500">
-                        Order ID
-                      </p>
+                      <p className="text-xs text-stone-500">Order ID</p>
                       <p className="mt-1 break-all font-mono text-sm text-stone-800">
                         {order.id}
                       </p>
                       <p className="mt-2 text-xs text-stone-500">
-                        Placed{' '}
+                        Placed{" "}
                         {order.created_at
                           ? new Date(order.created_at).toLocaleDateString(
-                              'en-IN',
+                              "en-IN",
                               {
-                                day: 'numeric',
-                                month: 'short',
-                                year: 'numeric',
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
                               },
                             )
-                          : 'Date unavailable'}
+                          : "Date unavailable"}
                       </p>
                     </div>
 
@@ -324,20 +348,60 @@ export function MyOrders({
                           </p>
 
                           <p className="mt-1 text-sm font-medium text-stone-800">
-                            Subtotal:{' '}
-                            {money(
-                              Number(item.unit_price) * item.quantity,
-                            )}
+                            Subtotal:{" "}
+                            {money(Number(item.unit_price) * item.quantity)}
                           </p>
                         </div>
 
-                        {canRequestReturn && (
-                          <button
-                            onClick={() => onRequestReturn(order, item)}
-                            className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-800 transition hover:bg-stone-50"
-                          >
-                            Request Return
-                          </button>
+                        {order.return_request ? (
+                          // If a return request data row exists, hide the request button and render this tracking status badge
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-left shadow-sm mt-2 max-w-sm animate-fadeIn">
+                            <div className="flex justify-between items-center mb-1.5 border-b border-amber-100 pb-1">
+                              <span className="font-semibold text-amber-900 text-xs">
+                                Return Status:
+                              </span>
+                              <span className="px-2 py-0.5 text-[10px] font-extrabold rounded bg-amber-200 text-amber-950 uppercase tracking-wider">
+                                {order.return_request.status.replace("_", " ")}
+                              </span>
+                            </div>
+
+                            <p className="text-gray-600 text-xs leading-relaxed font-normal">
+                              {order.return_request.status === "requested" &&
+                                "Under review. Our admin team is verifying your submission notes."}
+                              {order.return_request.status === "approved" &&
+                                "Approved! Preparing reverse courier pickup labels."}
+                              {order.return_request.status ===
+                                "pickup_scheduled" &&
+                                "Logistics configured. A courier agent will collect the package from your doorstep."}
+                              {order.return_request.status === "received" &&
+                                "Package received at our warehouse. Undergoing quality verification check."}
+                              {order.return_request.status ===
+                                "inspection_passed" &&
+                                "Product inspection passed successfully. Preparing transaction refund ledger."}
+                              {order.return_request.status ===
+                                "refund_pending" &&
+                                "Refund Authorized: Processing payment routing sequences back to your account."}
+                              {order.return_request.status === "completed" &&
+                                "Refund Disbursed: The full order amount has credited back to your payment method."}
+                              {order.return_request.status ===
+                                "inspection_failed" &&
+                                "Return Declined: The package contents did not satisfy our jewelry verification standards."}
+                              {order.return_request.status === "rejected" &&
+                                "Return Request Rejected: Your return files were denied due to store parameter rules."}
+                              {order.return_request.status === "cancelled" &&
+                                "This return transaction request was cancelled."}
+                            </p>
+                          </div>
+                        ) : (
+                          // If there is no active return request for this order, display your original button layout cleanly
+                          canRequestReturn && (
+                            <button
+                              onClick={() => onRequestReturn(order, item)}
+                              className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-800 transition hover:bg-stone-50"
+                            >
+                              Request Return
+                            </button>
+                          )
                         )}
                       </div>
                     ))}
@@ -351,18 +415,14 @@ export function MyOrders({
 
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-100 p-5">
                     <div>
-                      <p className="text-xs text-stone-500">
-                        Payment method
-                      </p>
+                      <p className="text-xs text-stone-500">Payment method</p>
                       <p className="mt-1 text-sm text-stone-800">
                         {label(order.payment_method)}
                       </p>
                     </div>
 
                     <div className="text-right">
-                      <p className="text-xs text-stone-500">
-                        Order total
-                      </p>
+                      <p className="text-xs text-stone-500">Order total</p>
                       <p className="mt-1 text-xl font-semibold text-stone-900">
                         {money(order.total_amount)}
                       </p>
