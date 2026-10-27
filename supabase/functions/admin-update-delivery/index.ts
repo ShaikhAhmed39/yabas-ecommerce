@@ -12,6 +12,7 @@ const ALLOWED_STATUSES = [
   "shipped",
   "out_for_delivery",
   "delivered",
+  "delivery_failed",
   "cancelled",
 ] as const;
 
@@ -97,6 +98,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const orderId = body?.order_id;
     const nextStatus = body?.delivery_status;
+    const expectedStatus = body?.expected_delivery_status;
 
     if (
       typeof orderId !== "string" ||
@@ -120,19 +122,63 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Record a delivery timestamp only when marking the order delivered.
-    const updatePayload = {
+    if (
+      typeof expectedStatus !== "string" ||
+      !ALLOWED_STATUSES.includes(
+        expectedStatus as (typeof ALLOWED_STATUSES)[number],
+      )
+    ) {
+      return new Response(
+        JSON.stringify({ error: "A valid expected delivery status is required. Refresh the order and try again." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Read the current status and delivery timestamp before attempting a guarded update.
+    const { data: existingOrder, error: existingOrderError } = await adminClient
+      .from("orders")
+      .select("id, delivery_status, delivered_at")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (existingOrderError) {
+      console.error("Delivery status lookup failed:", existingOrderError);
+      return new Response(
+        JSON.stringify({ error: "Could not verify the existing order." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!existingOrder) {
+      return new Response(
+        JSON.stringify({ error: "Order not found." }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (existingOrder.delivery_status !== expectedStatus) {
+      return new Response(
+        JSON.stringify({ error: "This order was updated elsewhere. Refresh the order list and try again." }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Delivery updates must not overwrite the order's independent lifecycle status.
+    // Set delivered_at once on first delivery; never clear or reset its history here.
+    const updatePayload: { delivery_status: string; delivered_at?: string } = {
       delivery_status: nextStatus,
-      status:nextStatus,
-      delivered_at:
-        nextStatus === "delivered" ? new Date().toISOString() : null,
     };
+
+    if (nextStatus === "delivered" && !existingOrder.delivered_at) {
+      updatePayload.delivered_at = new Date().toISOString();
+    }
 
     const { data: order, error: updateError } = await adminClient
       .from("orders")
       .update(updatePayload)
       .eq("id", orderId)
-      .select("id, delivery_status, delivered_at")
+      .eq("delivery_status", existingOrder.delivery_status)
+      .select("id, status, delivery_status, delivered_at")
       .maybeSingle();
 
     if (updateError) {
@@ -145,8 +191,8 @@ Deno.serve(async (req: Request) => {
 
     if (!order) {
       return new Response(
-        JSON.stringify({ error: "Order not found." }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "This order changed during the update. Refresh the order list and try again." }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

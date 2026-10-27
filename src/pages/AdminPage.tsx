@@ -6,6 +6,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { AuthModal } from '@/components/AuthModal';
+import { HeroMediaManager } from '@/components/admin/HeroMediaManager';
 import { compressImageToWebP, formatFileSize } from '@/utils/imageCompress';
 import { formatINR, calculateDiscount } from '@/utils/format';
 import type { Product, ProductInput } from '@/types';
@@ -188,13 +189,13 @@ function ReturnManagementPanel() {
     if (action === 'mark_refund_pending') {
       const maxAmount = Number(request.item?.unit_price ?? 0) * Number(request.item?.quantity ?? 0);
       const value = window.prompt(
-        `Enter refund amount (maximum ₹${maxAmount.toFixed(2)}). This only records refund-pending status; it does not issue a refund.`,
+        `Enter refund amount (maximum â‚¹${maxAmount.toFixed(2)}). This only records refund-pending status; it does not issue a refund.`,
         maxAmount.toFixed(2),
       );
       if (value === null || value.trim() === '') return;
       const amount = Number(value);
       if (!Number.isFinite(amount) || amount <= 0 || amount > maxAmount) {
-        setReturnError(`Enter an amount greater than ₹0 and no more than ₹${maxAmount.toFixed(2)}.`);
+        setReturnError(`Enter an amount greater than â‚¹0 and no more than â‚¹${maxAmount.toFixed(2)}.`);
         return;
       }
       await performAction(request, action, { refund_amount: Math.round(amount * 100) / 100 });
@@ -293,7 +294,7 @@ function ReturnManagementPanel() {
       {loadingReturns ? (
         <div className="flex items-center justify-center py-16 bg-cream-50 rounded-2xl shadow-soft">
           <Loader2 className="h-7 w-7 animate-spin text-gold-500" />
-          <span className="ml-3 text-sm text-onyx-200">Loading return requests…</span>
+          <span className="ml-3 text-sm text-onyx-200">Loading return requestsâ€¦</span>
         </div>
       ) : requests.length === 0 ? (
         <div className="text-center py-16 bg-cream-50 rounded-2xl shadow-soft border border-gold-200/20">
@@ -330,7 +331,7 @@ function ReturnManagementPanel() {
                         {item?.product_title || 'Product details unavailable'}
                       </h3>
                       <p className="text-xs text-onyx-100 mt-1">
-                        Order: {request.order_id.slice(0, 8)} · Qty: {item?.quantity ?? '—'} · Unit price: {item ? formatINR(Number(item.unit_price)) : '—'}
+                        Order: {request.order_id.slice(0, 8)} Â· Qty: {item?.quantity ?? 'â€”'} Â· Unit price: {item ? formatINR(Number(item.unit_price)) : 'â€”'}
                       </p>
                     </div>
                     <div className="text-left md:text-right flex-shrink-0">
@@ -391,7 +392,7 @@ function ReturnManagementPanel() {
                     <div className="mt-4 border-t border-gold-200/30 pt-4">
                       {photoError && <p className="text-sm text-red-700 mb-3">{photoError}</p>}
                       {photosLoading ? (
-                        <p className="text-xs text-onyx-200">Generating secure photo links…</p>
+                        <p className="text-xs text-onyx-200">Generating secure photo linksâ€¦</p>
                       ) : photos.length === 0 ? (
                         <p className="text-xs text-onyx-100">No photos attached to this request.</p>
                       ) : (
@@ -422,7 +423,7 @@ function ReturnManagementPanel() {
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-2">
             <p className="text-xs text-onyx-100">
-              Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)} of {total} requests
+              Showing {page * pageSize + 1}â€“{Math.min((page + 1) * pageSize, total)} of {total} requests
             </p>
             <div className="flex gap-2">
               <button
@@ -476,6 +477,7 @@ const DELIVERY_STATUSES = [
   { value: 'shipped', label: 'Shipped' },
   { value: 'out_for_delivery', label: 'Out for delivery' },
   { value: 'delivered', label: 'Delivered' },
+  { value: 'delivery_failed', label: 'Delivery failed' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
@@ -491,15 +493,18 @@ function OrderManagementPanel() {
     if (quiet) setRefreshing(true); else setLoadingOrders(true);
     setError(null);
     try {
-      const { data, error: queryError } = await supabase
-        .from('orders')
-        .select('id,user_id,total_amount,status,payment_method,customer_name,shipping_address_line1,shipping_address_line2,city,state,pincode,primary_phone,backup_phone,created_at,payment_status,delivery_status,delivered_at')
-        .order('created_at', { ascending: false })
-        .limit(100);
+      const { data, error: queryError } = await supabase.functions.invoke(
+        'admin-list-orders',
+        { body: {} },
+      );
       if (queryError) throw queryError;
-      setOrders((data ?? []) as AdminOrder[]);
+      if (data?.error) throw new Error(data.error);
+      if (!Array.isArray(data?.orders)) {
+        throw new Error('The server returned an invalid order list.');
+      }
+      setOrders(data.orders as AdminOrder[]);
     } catch (err: any) {
-      setError(err?.message || 'Could not load orders. Check your admin access and Supabase RLS policies.');
+      setError(err?.message || 'Could not load orders. Verify administrator access and the order-list function.');
     } finally {
       setLoadingOrders(false);
       setRefreshing(false);
@@ -511,38 +516,38 @@ function OrderManagementPanel() {
   const updateDeliveryStatus = async (order: AdminOrder, nextStatus: string) => {
     if (nextStatus === (order.delivery_status || 'pending')) return;
     const label = DELIVERY_STATUSES.find((item) => item.value === nextStatus)?.label || nextStatus;
-    if (!window.confirm(`Change delivery status for order ${order.id.slice(0, 8)} to “${label}”?`)) return;
+    if (!window.confirm(`Change delivery status for order ${order.id.slice(0, 8)} to â€œ${label}â€?`)) return;
     setBusyId(order.id);
     setError(null);
     setSuccess(null);
     try {
-      const updatePayload = {
-        delivery_status: nextStatus,
-        delivered_at: nextStatus === 'delivered' ? new Date().toISOString() : null,
-      };
-      
-const { data, error: updateError } = await supabase.functions.invoke(
-  'admin-update-delivery',
-  {
-    body: {
-      order_id: order.id,
-      delivery_status: nextStatus,
-    },
-  },
-);
-
-if (updateError) throw updateError;
-if (data?.error) throw new Error(data.error);
-
-const updatedOrder = data?.order;
-
-if (!updatedOrder) {
-  throw new Error('The server did not return the updated order.');
-}
+      const { data, error: updateError } = await supabase.functions.invoke(
+        'admin-update-delivery',
+        {
+          body: {
+            order_id: order.id,
+            delivery_status: nextStatus,
+            expected_delivery_status: order.delivery_status || 'pending',
+          },
+        },
+      );
 
       if (updateError) throw updateError;
-      if (!data) throw new Error('No order was updated. Supabase may be blocking this update through Row Level Security (RLS).');
-      setOrders((current) => current.map((item) => item.id === order.id ? { ...item, delivery_status: updatedOrder.delivery_status, status: updatedOrder.delivery_status, delivered_at: updatedOrder.delivered_at } : item));
+      if (data?.error) throw new Error(data.error);
+
+      const updatedOrder = data?.order;
+      if (!updatedOrder) {
+        throw new Error('The server did not return the updated order.');
+      }
+
+      setOrders((current) => current.map((item) => item.id === order.id
+        ? {
+            ...item,
+            status: updatedOrder.status,
+            delivery_status: updatedOrder.delivery_status,
+            delivered_at: updatedOrder.delivered_at,
+          }
+        : item));
       setSuccess(`Order ${order.id.slice(0, 8)} delivery status updated to ${label}.`);
     } catch (err: any) {
       setError(err?.message || 'Could not update delivery status. Check your admin RLS policy.');
@@ -565,7 +570,7 @@ if (!updatedOrder) {
       {error && <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3"><AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" /><span>{error}</span></div>}
       {success && <div className="flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3"><CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" /><span>{success}</span></div>}
       {loadingOrders ? (
-        <div className="flex items-center justify-center py-16 bg-cream-50 rounded-2xl shadow-soft"><Loader2 className="h-7 w-7 animate-spin text-gold-500" /><span className="ml-3 text-sm text-onyx-200">Loading orders…</span></div>
+        <div className="flex items-center justify-center py-16 bg-cream-50 rounded-2xl shadow-soft"><Loader2 className="h-7 w-7 animate-spin text-gold-500" /><span className="ml-3 text-sm text-onyx-200">Loading ordersâ€¦</span></div>
       ) : orders.length === 0 ? (
         <div className="text-center py-16 bg-cream-50 rounded-2xl shadow-soft border border-gold-200/20"><ShoppingBag className="h-10 w-10 text-onyx-100/40 mx-auto mb-3" /><p className="text-sm font-medium text-onyx-300">No orders found.</p><p className="text-xs text-onyx-100 mt-1">Orders will appear here after the checkout flow creates them.</p></div>
       ) : (
@@ -575,16 +580,16 @@ if (!updatedOrder) {
             return <article key={order.id} className="bg-cream-50 rounded-2xl shadow-soft border border-gold-200/20 p-4 sm:p-5">
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-xs text-onyx-100">Order #{order.id.slice(0, 8)} · {new Date(order.created_at).toLocaleString()}</p>
+                  <p className="text-xs text-onyx-100">Order #{order.id.slice(0, 8)} Â· {new Date(order.created_at).toLocaleString()}</p>
                   <h3 className="font-serif text-lg font-semibold text-onyx-300 mt-1">{order.customer_name || 'Customer name not provided'}</h3>
-                  <p className="text-xs text-onyx-200 mt-1">{order.primary_phone || 'No phone'}{order.backup_phone ? ` · Backup: ${order.backup_phone}` : ''}</p>
+                  <p className="text-xs text-onyx-200 mt-1">{order.primary_phone || 'No phone'}{order.backup_phone ? ` Â· Backup: ${order.backup_phone}` : ''}</p>
                   {address && <p className="text-xs text-onyx-200 mt-1">{address}</p>}
                   <p className="text-[11px] text-onyx-100 mt-1 break-all">Customer ID: {order.user_id}</p>
                 </div>
                 <div className="md:text-right flex-shrink-0">
                   <p className="font-display text-xl font-bold text-onyx-300">{formatINR(Number(order.total_amount) || 0)}</p>
-                  <p className="text-xs text-onyx-200 mt-1">Payment: {order.payment_method || '—'} · {order.payment_status || 'Unspecified'}</p>
-                  <p className="text-xs text-onyx-200 mt-1">Order status: {order.status || '—'}</p>
+                  <p className="text-xs text-onyx-200 mt-1">Payment: {order.payment_method || 'â€”'} Â· {order.payment_status || 'Unspecified'}</p>
+                  <p className="text-xs text-onyx-200 mt-1">Order status: {order.status || 'â€”'}</p>
                 </div>
               </div>
               <div className="mt-4 pt-4 border-t border-gold-200/30 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -618,6 +623,7 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
   const [showAuth, setShowAuth] = useState(false);
   const [showReturns, setShowReturns] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
+  const [showHeroMedia, setShowHeroMedia] = useState(false);
 
   // Compressed Image Asset Processing States
   const [, setUploadFile] = useState<File | null>(null);
@@ -880,615 +886,662 @@ const calculatedLiveDiscount =
     : 0;
 
 return (
-    <div className="min-h-screen bg-cream-100">
-      {/* Admin header */}
-      <div className="bg-onyx-300 text-cream-100 sticky top-0 z-30 shadow-medium">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={() => onNavigate('storefront')}
-              className="p-2 rounded-full hover:bg-cream-100/10 transition-colors flex-shrink-0"
-              title="Return to store homepage"
-              aria-label="Return to store homepage"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <div className="min-w-0">
-              <h1 className="font-display text-lg font-bold truncate">Admin Dashboard</h1>
-              <p className="text-xs text-cream-300 truncate">Yaba's Imitation & Jewellery</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setShowOrders((current) => !current);
-                setShowReturns(false);
-                setShowForm(false);
-                setError(null);
-                setSuccess(null);
-              }}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-sm font-medium transition-colors flex-shrink-0 ${
-                showOrders ? 'bg-cream-100 text-onyx-300' : 'border border-gold-400/50 text-cream-100 hover:bg-cream-100/10'
-              }`}
-            >
-              <ShoppingBag className="h-4 w-4" />
-              <span>Orders</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowReturns((current) => !current);
-                setShowOrders(false);
-                setShowForm(false);
-                setError(null);
-                setSuccess(null);
-              }}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-sm font-medium transition-colors flex-shrink-0 ${
-                showReturns
-                  ? 'bg-cream-100 text-onyx-300'
-                  : 'border border-gold-400/50 text-cream-100 hover:bg-cream-100/10'
-              }`}
-            >
-              <ClipboardList className="h-4 w-4" />
-              <span>Returns</span>
-            </button>
-            {!showForm && !showReturns && !showOrders && (
-              <button
-                onClick={handleNew}
-                className="flex items-center gap-2 px-4 py-2 gold-gradient rounded-full text-sm font-medium shadow-gold hover:scale-[1.02] transition-transform flex-shrink-0"
-              >
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Add Product</span>
-              </button>
-            )}
+  <div className="min-h-screen bg-cream-100">
+    {/* Admin header */}
+    <div className="bg-onyx-300 text-cream-100 sticky top-0 z-30 shadow-medium">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            onClick={() => onNavigate("storefront")}
+            className="p-2 rounded-full hover:bg-cream-100/10 transition-colors flex-shrink-0"
+            title="Return to store homepage"
+            aria-label="Return to store homepage"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="min-w-0">
+            <h1 className="font-display text-lg font-bold truncate">
+              Admin Dashboard
+            </h1>
+            <p className="text-xs text-cream-300 truncate">
+              Yaba's Imitation & Jewellery
+            </p>
           </div>
         </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setShowOrders((current) => !current);
+              setShowReturns(false);
+              setShowForm(false);
+              setError(null);
+              setSuccess(null);
+            }}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-sm font-medium transition-colors flex-shrink-0 ${
+              showOrders
+                ? "bg-cream-100 text-onyx-300"
+                : "border border-gold-400/50 text-cream-100 hover:bg-cream-100/10"
+            }`}
+          >
+            <ShoppingBag className="h-4 w-4" />
+            <span>Orders</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowHeroMedia((current) => !current);
+              setShowOrders(false);
+              setShowReturns(false);
+              setShowForm(false);
+              setError(null);
+              setSuccess(null);
+            }}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-sm font-medium transition-colors flex-shrink-0 ${
+              showHeroMedia
+                ? "bg-cream-100 text-onyx-300"
+                : "border border-gold-400/50 text-cream-100 hover:bg-cream-100/10"
+            }`}
+          >
+            <ImageIcon className="h-4 w-4" />
+            <span>Hero Media</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowReturns((current) => !current);
+              setShowOrders(false);
+              setShowForm(false);
+              setError(null);
+              setSuccess(null);
+            }}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-sm font-medium transition-colors flex-shrink-0 ${
+              showReturns
+                ? "bg-cream-100 text-onyx-300"
+                : "border border-gold-400/50 text-cream-100 hover:bg-cream-100/10"
+            }`}
+          >
+            <ClipboardList className="h-4 w-4" />
+            <span>Returns</span>
+          </button>
+          {!showForm && !showReturns && !showOrders && (
+            <button
+              onClick={handleNew}
+              className="flex items-center gap-2 px-4 py-2 gold-gradient rounded-full text-sm font-medium shadow-gold hover:scale-[1.02] transition-transform flex-shrink-0"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Add Product</span>
+            </button>
+          )}
+        </div>
       </div>
+    </div>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-        {/* Real-time System Response Notifications */}
-        {error && (
-          <div className="mb-5 flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+      {/* Real-time System Response Notifications */}
+      {error && (
+        <div className="mb-5 flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
-        {success && (
-          <div className="mb-5 flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-            <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span>{success}</span>
-          </div>
-        )}
+      {success && (
+        <div className="mb-5 flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+          <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <span>{success}</span>
+        </div>
+      )}
 
-        {showOrders ? (
-          <OrderManagementPanel />
-        ) : showReturns ? (
-          <ReturnManagementPanel />
-        ) : (
+      {showOrders ? (
+        <OrderManagementPanel />
+      ) : showReturns ? (
+        <ReturnManagementPanel />
+      ) : showHeroMedia ? (
+        <HeroMediaManager />
+      ) : (
         <>
-        {/* Core Product Input Workspace Management Form */}
-        {showForm && (
-          <div className="mb-6 bg-cream-50 rounded-2xl shadow-soft p-5 sm:p-6 animate-slide-up border border-gold-200/20">
-            <div className="flex items-center justify-between mb-5 gap-4">
-              <div>
-                <h2 className="font-display text-lg font-bold text-onyx-300">
-                  {editingId ? 'Edit Catalogue Item' : 'Add New Inventory Piece'}
-                </h2>
-                <p className="text-xs text-onyx-100 mt-1">
-                  Manage product details, pricing, inventory and imagery.
-                </p>
-              </div>
-
-              <button
-                onClick={() => {
-                  setShowForm(false);
-                  setEditingId(null);
-                  setForm(EMPTY_FORM);
-                  setImagePreview('');
-                  setUploadInfo(null);
-                }}
-                className="p-2 rounded-full hover:bg-cream-200 transition-colors text-onyx-300 flex-shrink-0"
-                aria-label="Close product form"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSave} className="space-y-5">
-              {/* IMAGE UPLOAD SECTION BLOCK */}
-              <div>
-                <label className="block text-xs font-medium text-onyx-200 mb-2 uppercase tracking-wider">
-                  Product Photograph *
-                </label>
-
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="w-full sm:w-44 h-44 rounded-xl bg-cream-200 overflow-hidden flex items-center justify-center border-2 border-dashed border-gold-200/50 flex-shrink-0">
-                    {imagePreview ? (
-                      <img
-                        src={imagePreview}
-                        alt="Product preview"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <ImageIcon className="h-10 w-10 text-onyx-100/40" />
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <label className="flex items-center justify-center gap-2 px-4 py-3 bg-cream-200/50 border border-gold-200/40 rounded-xl text-sm text-onyx-300 cursor-pointer hover:bg-gold-50 transition-colors">
-                      <Upload className="h-4 w-4" />
-                      {uploading ? 'Compressing & Uploading...' : 'Choose Product Image'}
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                        disabled={uploading}
-                      />
-                    </label>
-
-                    <p className="mt-2 text-xs text-onyx-100">
-                      Accepted formats: JPG, JPEG, PNG, WebP. Maximum source size: 100MB.
-                    </p>
-
-                    {uploadInfo && (
-                      <div className="mt-3 rounded-xl bg-cream-100 border border-gold-200/20 px-3 py-2 text-xs text-onyx-100 space-y-1">
-                        <p>
-                          Raw Input Volume:{' '}
-                          <span className="text-onyx-300 font-medium">{uploadInfo.original}</span>
-                        </p>
-                        <p>
-                          Optimized WebP Footprint:{' '}
-                          <span className="text-green-700 font-medium">{uploadInfo.compressed}</span>
-                        </p>
-                        <p className="text-gold-500">
-                          Automatically compressed and scaled for fast customer loading.
-                        </p>
-                      </div>
-                    )}
-
-                    {uploading && (
-                      <div className="mt-2 flex items-center gap-2 text-xs text-onyx-200">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Processing image scaling pipeline...
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* CORE BASIC TEXT CONTROLS */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Core Product Input Workspace Management Form */}
+          {showForm && (
+            <div className="mb-6 bg-cream-50 rounded-2xl shadow-soft p-5 sm:p-6 animate-slide-up border border-gold-200/20">
+              <div className="flex items-center justify-between mb-5 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
-                    Item Title *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.title}
-                    onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
-                    placeholder="E.g., Heritage Micro Plated Choker"
-                  />
+                  <h2 className="font-display text-lg font-bold text-onyx-300">
+                    {editingId
+                      ? "Edit Catalogue Item"
+                      : "Add New Inventory Piece"}
+                  </h2>
+                  <p className="text-xs text-onyx-100 mt-1">
+                    Manage product details, pricing, inventory and imagery.
+                  </p>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
-                    Core Collection Category *
-                  </label>
-                  <select
-                    required
-                    value={form.category}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        category: e.target.value,
-                        sub_category: '',
-                      })
-                    }
-                    className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
-                  >
-                    <option value="">Choose Category</option>
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* ROUTED SUB-CATEGORICAL CLASSIFICATION MATRIX */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
-                    Sub-Category Dropdown
-                  </label>
-                  <select
-                    value={form.sub_category}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        sub_category: e.target.value,
-                      })
-                    }
-                    disabled={!form.category}
-                    className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Select Sub-Category</option>
-                    {form.category &&
-                      SUB_CATEGORIES[form.category]?.map((sc) => (
-                        <option key={sc} value={sc}>
-                          {sc}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
-                    Occasion Wear Segment
-                  </label>
-                  <select
-                    value={form.occasion_wear}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        occasion_wear: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
-                  >
-                    <option value="">Select Occasion</option>
-                    {OCCASIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* ITEM CHARACTERISTICS DESCRIPTION CONTAINER */}
-              <div>
-                <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
-                  Detailed Catalogue Description
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      description: e.target.value,
-                    })
-                  }
-                  rows={3}
-                  className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all resize-none"
-                  placeholder="Describe craftsmanship details, design accents, weight profile, or care requirements..."
-                />
-              </div>
-
-              {/* PRICING SCHEMA VALUATION BLOCK */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
-                    Retail MRP (₹)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.original_price || ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        original_price: Math.max(0, Number(e.target.value)),
-                      })
-                    }
-                    className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
-                    placeholder="Optional Max Price"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
-                    Selling Price (₹) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={form.selling_price || ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        selling_price: Math.max(0, Number(e.target.value)),
-                      })
-                    }
-                    className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
-                    placeholder="Required Active Price"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
-                    Discount Ribbon %
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={form.discount_percent || ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        discount_percent: Math.min(
-                          100,
-                          Math.max(0, Number(e.target.value))
-                        ),
-                      })
-                    }
-                    className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
-                    placeholder="Auto Calculated"
-                  />
-                  {calculatedLiveDiscount > 0 && (
-                    <div className="mt-1.5 text-[10px] text-gold-600 font-medium">
-                      Auto-computed: {calculatedLiveDiscount}% Off
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
-                    Inventory Stock *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={form.stock || ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        stock: Math.max(0, Math.floor(Number(e.target.value))),
-                      })
-                    }
-                    className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
-                    placeholder="Available Units"
-                  />
-                </div>
-              </div>
-
-              {/* MATERIAL TECHNICAL SPECIFICATIONS */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
-                    Material Composition
-                  </label>
-                  <input
-                    type="text"
-                    value={form.material_type}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        material_type: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
-                    placeholder="E.g., Stainless Steel / Brass Core"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
-                    Polish / Plating Finish
-                  </label>
-                  <input
-                    type="text"
-                    value={form.polish_finish}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        polish_finish: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
-                    placeholder="E.g., 22k High Shine Gold Plated"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
-                    Sizing Dimensions
-                  </label>
-                  <input
-                    type="text"
-                    value={form.dimensions}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        dimensions: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
-                    placeholder="E.g., Adjustable Fit / 2.4 Bangles"
-                  />
-                </div>
-              </div>
-
-              {/* VISIBILITY HIGHLIGHT INTERACTIVE TOGGLE */}
-              <div className="flex items-center gap-3 pt-1">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.is_featured}
-                    onChange={(e) =>
-                      setForm({ ...form, is_featured: e.target.checked })
-                    }
-                    className="sr-only peer"
-                  />
-                  <span className="w-11 h-6 bg-cream-300 rounded-full peer peer-checked:bg-gold-500 transition-all relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-cream-100 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5" />
-                </label>
-                <span className="text-sm text-onyx-300">
-                  Feature this product on homepage catalog grids
-                </span>
-              </div>
-
-              {/* FORM COMMIT SUBMISSION UTILITIES */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={saving || uploading}
-                  className="flex items-center justify-center gap-2 px-6 py-3.5 gold-gradient text-cream-100 font-semibold rounded-xl shadow-gold hover:scale-[1.01] transition-transform disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                >
-                  {saving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  {editingId ? 'Update Product Record' : 'Publish Product to Store'}
-                </button>
 
                 <button
-                  type="button"
                   onClick={() => {
                     setShowForm(false);
                     setEditingId(null);
                     setForm(EMPTY_FORM);
-                    setImagePreview('');
+                    setImagePreview("");
                     setUploadInfo(null);
-                    setError(null);
                   }}
-                  className="px-6 py-3.5 bg-cream-200 text-onyx-300 font-medium rounded-xl hover:bg-cream-300 transition-colors text-sm"
+                  className="p-2 rounded-full hover:bg-cream-200 transition-colors text-onyx-300 flex-shrink-0"
+                  aria-label="Close product form"
                 >
-                  Cancel
+                  <X className="h-5 w-5" />
                 </button>
               </div>
-            </form>
-          </div>
-        )}
 
-        {/* ACTIVE LIVE GRID CATALOG MONITOR LIST */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="font-display text-xl font-bold text-onyx-300">
-                Currently Active Catalogue Listings
-              </h2>
-              <p className="text-xs text-onyx-100 mt-1">
-                Live inventory synchronized with Supabase.
-              </p>
-            </div>
-            <Package className="h-5 w-5 text-gold-500" />
-          </div>
+              <form onSubmit={handleSave} className="space-y-5">
+                {/* IMAGE UPLOAD SECTION BLOCK */}
+                <div>
+                  <label className="block text-xs font-medium text-onyx-200 mb-2 uppercase tracking-wider">
+                    Product Photograph *
+                  </label>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-20 bg-cream-50 rounded-2xl shadow-soft">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 text-gold-500 animate-spin mx-auto mb-3" />
-                <p className="text-sm text-onyx-200">Syncing database data logs...</p>
-              </div>
-            </div>
-          ) : products.length === 0 ? (
-            <div className="text-center py-20 bg-cream-50 rounded-2xl shadow-soft border border-gold-200/20">
-              <Package className="h-12 w-12 text-onyx-100/40 mx-auto mb-4" />
-              <p className="text-sm text-onyx-100">
-                No luxury inventory records active. Click "Add Product" to populate.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {products.map((product) => (
-                <div
-                  key={product.id}
-                  className="bg-cream-50 rounded-2xl shadow-soft overflow-hidden flex flex-col border border-gold-200/20"
-                >
-                  <div className="relative aspect-[4/3] overflow-hidden bg-cream-200">
-                    {product.image_url ? (
-                      <img
-                        src={product.image_url}
-                        alt={product.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="w-full sm:w-44 h-44 rounded-xl bg-cream-200 overflow-hidden flex items-center justify-center border-2 border-dashed border-gold-200/50 flex-shrink-0">
+                      {imagePreview ? (
+                        <img
+                          src={imagePreview}
+                          alt="Product preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
                         <ImageIcon className="h-10 w-10 text-onyx-100/40" />
-                      </div>
-                    )}
-
-                    {product.is_featured && (
-                      <div className="absolute top-3 left-3 text-[10px] bg-gold-500 text-cream-100 px-2.5 py-1 rounded-full font-semibold shadow-gold">
-                        Featured Spot
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-4 flex-1 flex flex-col">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <h3 className="font-serif text-base font-semibold text-onyx-300 line-clamp-2 flex-1">
-                        {product.title}
-                      </h3>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-onyx-100 mb-3">
-                      <span>{product.category}</span>
-                      <span>·</span>
-                      <span>Sub: {product.sub_category || 'None'}</span>
-                      <span>·</span>
-                      <span
-                        className={
-                          product.stock === 0
-                            ? 'text-red-600 font-bold'
-                            : 'text-onyx-200'
-                        }
-                      >
-                        Units: {product.stock}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="font-display text-lg font-bold text-onyx-300">
-                        {formatINR(product.selling_price)}
-                      </span>
-
-                      {Number(product.original_price) >
-                        Number(product.selling_price) && (
-                        <span className="text-xs text-onyx-100 line-through">
-                          {formatINR(product.original_price)}
-                        </span>
                       )}
                     </div>
 
-                    <div className="mt-auto flex gap-2">
-                      <button
-                        onClick={() => handleEdit(product)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-cream-200 text-onyx-300 text-xs font-semibold rounded-xl hover:bg-gold-50 border border-gold-200/30 transition-all"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Edit Details
-                      </button>
+                    <div className="flex-1 min-w-0">
+                      <label className="flex items-center justify-center gap-2 px-4 py-3 bg-cream-200/50 border border-gold-200/40 rounded-xl text-sm text-onyx-300 cursor-pointer hover:bg-gold-50 transition-colors">
+                        <Upload className="h-4 w-4" />
+                        {uploading
+                          ? "Compressing & Uploading..."
+                          : "Choose Product Image"}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={handleFileSelect}
+                          className="hidden"
+                          disabled={uploading}
+                        />
+                      </label>
 
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-red-50/60 text-red-600 text-xs rounded-xl hover:bg-red-100 border border-red-200/20 transition-all"
-                        title="Permanently remove item from database"
-                        aria-label={`Delete ${product.title}`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <p className="mt-2 text-xs text-onyx-100">
+                        Accepted formats: JPG, JPEG, PNG, WebP. Maximum source
+                        size: 100MB.
+                      </p>
+
+                      {uploadInfo && (
+                        <div className="mt-3 rounded-xl bg-cream-100 border border-gold-200/20 px-3 py-2 text-xs text-onyx-100 space-y-1">
+                          <p>
+                            Raw Input Volume:{" "}
+                            <span className="text-onyx-300 font-medium">
+                              {uploadInfo.original}
+                            </span>
+                          </p>
+                          <p>
+                            Optimized WebP Footprint:{" "}
+                            <span className="text-green-700 font-medium">
+                              {uploadInfo.compressed}
+                            </span>
+                          </p>
+                          <p className="text-gold-500">
+                            Automatically compressed and scaled for fast
+                            customer loading.
+                          </p>
+                        </div>
+                      )}
+
+                      {uploading && (
+                        <div className="mt-2 flex items-center gap-2 text-xs text-onyx-200">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Processing image scaling pipeline...
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              ))}
+
+                {/* CORE BASIC TEXT CONTROLS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
+                      Item Title *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={form.title}
+                      onChange={(e) =>
+                        setForm({ ...form, title: e.target.value })
+                      }
+                      className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
+                      placeholder="E.g., Heritage Micro Plated Choker"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
+                      Core Collection Category *
+                    </label>
+                    <select
+                      required
+                      value={form.category}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          category: e.target.value,
+                          sub_category: "",
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
+                    >
+                      <option value="">Choose Category</option>
+                      {CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* ROUTED SUB-CATEGORICAL CLASSIFICATION MATRIX */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
+                      Sub-Category Dropdown
+                    </label>
+                    <select
+                      value={form.sub_category}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          sub_category: e.target.value,
+                        })
+                      }
+                      disabled={!form.category}
+                      className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Select Sub-Category</option>
+                      {form.category &&
+                        SUB_CATEGORIES[form.category]?.map((sc) => (
+                          <option key={sc} value={sc}>
+                            {sc}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
+                      Occasion Wear Segment
+                    </label>
+                    <select
+                      value={form.occasion_wear}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          occasion_wear: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
+                    >
+                      <option value="">Select Occasion</option>
+                      {OCCASIONS.map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* ITEM CHARACTERISTICS DESCRIPTION CONTAINER */}
+                <div>
+                  <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
+                    Detailed Catalogue Description
+                  </label>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        description: e.target.value,
+                      })
+                    }
+                    rows={3}
+                    className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all resize-none"
+                    placeholder="Describe craftsmanship details, design accents, weight profile, or care requirements..."
+                  />
+                </div>
+
+                {/* PRICING SCHEMA VALUATION BLOCK */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
+                      Retail MRP (â‚¹)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.original_price || ""}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          original_price: Math.max(0, Number(e.target.value)),
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
+                      placeholder="Optional Max Price"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
+                      Selling Price (â‚¹) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={form.selling_price || ""}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          selling_price: Math.max(0, Number(e.target.value)),
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
+                      placeholder="Required Active Price"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
+                      Discount Ribbon %
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={form.discount_percent || ""}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          discount_percent: Math.min(
+                            100,
+                            Math.max(0, Number(e.target.value)),
+                          ),
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
+                      placeholder="Auto Calculated"
+                    />
+                    {calculatedLiveDiscount > 0 && (
+                      <div className="mt-1.5 text-[10px] text-gold-600 font-medium">
+                        Auto-computed: {calculatedLiveDiscount}% Off
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
+                      Inventory Stock *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={form.stock || ""}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          stock: Math.max(
+                            0,
+                            Math.floor(Number(e.target.value)),
+                          ),
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
+                      placeholder="Available Units"
+                    />
+                  </div>
+                </div>
+
+                {/* MATERIAL TECHNICAL SPECIFICATIONS */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
+                      Material Composition
+                    </label>
+                    <input
+                      type="text"
+                      value={form.material_type}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          material_type: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
+                      placeholder="E.g., Stainless Steel / Brass Core"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
+                      Polish / Plating Finish
+                    </label>
+                    <input
+                      type="text"
+                      value={form.polish_finish}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          polish_finish: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
+                      placeholder="E.g., 22k High Shine Gold Plated"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
+                      Sizing Dimensions
+                    </label>
+                    <input
+                      type="text"
+                      value={form.dimensions}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          dimensions: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
+                      placeholder="E.g., Adjustable Fit / 2.4 Bangles"
+                    />
+                  </div>
+                </div>
+
+                {/* VISIBILITY HIGHLIGHT INTERACTIVE TOGGLE */}
+                <div className="flex items-center gap-3 pt-1">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.is_featured}
+                      onChange={(e) =>
+                        setForm({ ...form, is_featured: e.target.checked })
+                      }
+                      className="sr-only peer"
+                    />
+                    <span className="w-11 h-6 bg-cream-300 rounded-full peer peer-checked:bg-gold-500 transition-all relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-cream-100 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5" />
+                  </label>
+                  <span className="text-sm text-onyx-300">
+                    Feature this product on homepage catalog grids
+                  </span>
+                </div>
+
+                {/* FORM COMMIT SUBMISSION UTILITIES */}
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={saving || uploading}
+                    className="flex items-center justify-center gap-2 px-6 py-3.5 gold-gradient text-cream-100 font-semibold rounded-xl shadow-gold hover:scale-[1.01] transition-transform disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    {editingId
+                      ? "Update Product Record"
+                      : "Publish Product to Store"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForm(false);
+                      setEditingId(null);
+                      setForm(EMPTY_FORM);
+                      setImagePreview("");
+                      setUploadInfo(null);
+                      setError(null);
+                    }}
+                    className="px-6 py-3.5 bg-cream-200 text-onyx-300 font-medium rounded-xl hover:bg-cream-300 transition-colors text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
           )}
-        </div>
+
+          {/* ACTIVE LIVE GRID CATALOG MONITOR LIST */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="font-display text-xl font-bold text-onyx-300">
+                  Currently Active Catalogue Listings
+                </h2>
+                <p className="text-xs text-onyx-100 mt-1">
+                  Live inventory synchronized with Supabase.
+                </p>
+              </div>
+              <Package className="h-5 w-5 text-gold-500" />
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center py-20 bg-cream-50 rounded-2xl shadow-soft">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 text-gold-500 animate-spin mx-auto mb-3" />
+                  <p className="text-sm text-onyx-200">
+                    Syncing database data logs...
+                  </p>
+                </div>
+              </div>
+            ) : products.length === 0 ? (
+              <div className="text-center py-20 bg-cream-50 rounded-2xl shadow-soft border border-gold-200/20">
+                <Package className="h-12 w-12 text-onyx-100/40 mx-auto mb-4" />
+                <p className="text-sm text-onyx-100">
+                  No luxury inventory records active. Click "Add Product" to
+                  populate.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {products.map((product) => (
+                  <div
+                    key={product.id}
+                    className="bg-cream-50 rounded-2xl shadow-soft overflow-hidden flex flex-col border border-gold-200/20"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden bg-cream-200">
+                      {product.image_url ? (
+                        <img
+                          src={product.image_url}
+                          alt={product.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageIcon className="h-10 w-10 text-onyx-100/40" />
+                        </div>
+                      )}
+
+                      {product.is_featured && (
+                        <div className="absolute top-3 left-3 text-[10px] bg-gold-500 text-cream-100 px-2.5 py-1 rounded-full font-semibold shadow-gold">
+                          Featured Spot
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-4 flex-1 flex flex-col">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h3 className="font-serif text-base font-semibold text-onyx-300 line-clamp-2 flex-1">
+                          {product.title}
+                        </h3>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-onyx-100 mb-3">
+                        <span>{product.category}</span>
+                        <span>Â·</span>
+                        <span>Sub: {product.sub_category || "None"}</span>
+                        <span>Â·</span>
+                        <span
+                          className={
+                            product.stock === 0
+                              ? "text-red-600 font-bold"
+                              : "text-onyx-200"
+                          }
+                        >
+                          Units: {product.stock}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="font-display text-lg font-bold text-onyx-300">
+                          {formatINR(product.selling_price)}
+                        </span>
+
+                        {Number(product.original_price) >
+                          Number(product.selling_price) && (
+                          <span className="text-xs text-onyx-100 line-through">
+                            {formatINR(product.original_price)}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-auto flex gap-2">
+                        <button
+                          onClick={() => handleEdit(product)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-cream-200 text-onyx-300 text-xs font-semibold rounded-xl hover:bg-gold-50 border border-gold-200/30 transition-all"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit Details
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-red-50/60 text-red-600 text-xs rounded-xl hover:bg-red-100 border border-red-200/20 transition-all"
+                          title="Permanently remove item from database"
+                          aria-label={`Delete ${product.title}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </>
-        )}
-      </div>
+      )}
     </div>
-  );
+  </div>
+);
 }

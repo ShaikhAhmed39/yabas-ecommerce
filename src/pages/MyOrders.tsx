@@ -9,6 +9,18 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 
+interface ReturnRequest {
+  id: string;
+  order_id: string;
+  order_item_id: string;
+  status: string;
+  reason: string;
+  description: string;
+  refund_amount: number | null;
+  photo_paths: string[];
+  created_at: string;
+}
+
 interface OrderItem {
   id: string;
   order_id: string;
@@ -16,6 +28,7 @@ interface OrderItem {
   product_title: string;
   unit_price: number | string;
   quantity: number;
+  return_request?: ReturnRequest | null;
 }
 
 export interface Order {
@@ -29,16 +42,6 @@ export interface Order {
   delivered_at: string | null;
   created_at: string | null;
   items: OrderItem[];
-  // === THIS NEW PROPERTY PREVENTS TYPESCRIPT BUILD ERRORS ===
-  return_request?: {
-    id: string;
-    order_id: string;
-    status: string;
-    reason: string;
-    description: string;
-    refund_amount: number | null;
-    photo_paths: string[];
-  } | null;
 }
 
 
@@ -136,25 +139,35 @@ export function MyOrders({
     // 2. Fetch return requests using verified columns
     const { data: returnData, error: returnError } = await supabase
       .from('return_requests')
-      .select('id, order_id, status, reason, description, refund_amount, photo_paths')
-      .in('order_id', orderIds);
+      .select('id, order_id, order_item_id, status, reason, description, refund_amount, photo_paths, created_at')
+      .in('order_id', orderIds)
+      .order('created_at', { ascending: false });
 
     if (returnError) {
-      console.error("Supabase Return Request Query Error:", returnError.message);
+      console.error('Supabase Return Request Query Error:', returnError.message);
+      setError('Your orders loaded, but return tracking could not be loaded. Please refresh.');
     }
 
     const items = (itemData || []) as OrderItem[];
+    const returnRequests = (returnError ? [] : (returnData || [])) as ReturnRequest[];
 
-    // 3. Merge both datasets into your React state array immutably
+    // Attach each return request to its exact order item, not to the whole order.
+    // Requests are newest-first, so the first match is the latest request for that item.
     setOrders(
-      fetchedOrders.map((order) => {
-        const matchingReturn = (returnData || []).find((ret) => ret.order_id === order.id);
-        return {
-          ...order,
-          items: items.filter((item) => item.order_id === order.id),
-          return_request: matchingReturn || null // Injects tracking record object straight into rows
-        };
-      }),
+      fetchedOrders.map((order) => ({
+        ...order,
+        items: items
+          .filter((item) => item.order_id === order.id)
+          .map((item) => ({
+            ...item,
+            return_request:
+              returnRequests.find(
+                (request) =>
+                  request.order_id === order.id &&
+                  request.order_item_id === item.id,
+              ) || null,
+          })),
+      })),
     );
 
     setLoading(false);
@@ -344,7 +357,7 @@ export function MyOrders({
                           </h3>
 
                           <p className="mt-1 text-sm text-stone-500">
-                            {money(item.unit_price)} × {item.quantity}
+                            {money(item.unit_price)} Ã— {item.quantity}
                           </p>
 
                           <p className="mt-1 text-sm font-medium text-stone-800">
@@ -353,48 +366,44 @@ export function MyOrders({
                           </p>
                         </div>
 
-                        {order.return_request ? (
-                          // If a return request data row exists, hide the request button and render this tracking status badge
+                        {item.return_request ? (
                           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-left shadow-sm mt-2 max-w-sm animate-fadeIn">
                             <div className="flex justify-between items-center mb-1.5 border-b border-amber-100 pb-1">
                               <span className="font-semibold text-amber-900 text-xs">
                                 Return Status:
                               </span>
                               <span className="px-2 py-0.5 text-[10px] font-extrabold rounded bg-amber-200 text-amber-950 uppercase tracking-wider">
-                                {order.return_request.status.replace("_", " ")}
+                                {label(item.return_request.status)}
                               </span>
                             </div>
 
                             <p className="text-gray-600 text-xs leading-relaxed font-normal">
-                              {order.return_request.status === "requested" &&
-                                "Under review. Our admin team is verifying your submission notes."}
-                              {order.return_request.status === "approved" &&
-                                "Approved! Preparing reverse courier pickup labels."}
-                              {order.return_request.status ===
-                                "pickup_scheduled" &&
-                                "Logistics configured. A courier agent will collect the package from your doorstep."}
-                              {order.return_request.status === "received" &&
-                                "Package received at our warehouse. Undergoing quality verification check."}
-                              {order.return_request.status ===
-                                "inspection_passed" &&
-                                "Product inspection passed successfully. Preparing transaction refund ledger."}
-                              {order.return_request.status ===
-                                "refund_pending" &&
-                                "Refund Authorized: Processing payment routing sequences back to your account."}
-                              {order.return_request.status === "completed" &&
-                                "Refund Disbursed: The full order amount has credited back to your payment method."}
-                              {order.return_request.status ===
-                                "inspection_failed" &&
-                                "Return Declined: The package contents did not satisfy our jewelry verification standards."}
-                              {order.return_request.status === "rejected" &&
-                                "Return Request Rejected: Your return files were denied due to store parameter rules."}
-                              {order.return_request.status === "cancelled" &&
-                                "This return transaction request was cancelled."}
+                              {item.return_request.status === 'requested' &&
+                                'Your return request is under review.'}
+                              {item.return_request.status === 'approved' &&
+                                'Your return request is approved. Pickup has not yet been confirmed.'}
+                              {item.return_request.status === 'pickup_scheduled' &&
+                                'A return pickup has been scheduled.'}
+                              {item.return_request.status === 'received' &&
+                                'Your returned item has been received and is awaiting inspection.'}
+                              {item.return_request.status === 'inspection_passed' &&
+                                'The item passed inspection. Refund processing has not necessarily started.'}
+                              {item.return_request.status === 'refund_pending' &&
+                                'Your refund is approved and awaiting processing.'}
+                              {item.return_request.status === 'refund_initiated' &&
+                                'Your refund has been initiated. Your payment provider may need additional time to process it.'}
+                              {item.return_request.status === 'completed' &&
+                                'The return process is marked complete. Check your original payment method for refund confirmation.'}
+                              {item.return_request.status === 'inspection_failed' &&
+                                'The returned item did not pass inspection. Please contact support if you need clarification.'}
+                              {item.return_request.status === 'rejected' &&
+                                'Your return request was rejected.'}
+                              {item.return_request.status === 'cancelled' &&
+                                'Your return request was cancelled.'}
                             </p>
                           </div>
                         ) : (
-                          // If there is no active return request for this order, display your original button layout cleanly
-                          canRequestReturn && (
+                          !error && canRequestReturn && (
                             <button
                               onClick={() => onRequestReturn(order, item)}
                               className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-800 transition hover:bg-stone-50"
