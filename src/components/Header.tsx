@@ -26,8 +26,8 @@ export function Header({
   const navLinks = [
     { label: 'Home', href: '#home' },
     { label: 'Collections', href: '#collections' },
-    { label: 'About Us', href: '#about' },
-    { label: 'Contact Us', href: '#contact' },
+    { label: 'Our story', href: '#about' },
+    { label: 'Contact', href: '#contact' },
   ];
 
   const handleNavClick = (e: React.MouseEvent, href: string) => {
@@ -48,194 +48,131 @@ export function Header({
     setMobileMenuOpen(false);
   };
 
+  const linkClass =
+    'text-[15px] text-cream-200 hover:text-gold-300 transition-colors duration-200 whitespace-nowrap';
+  const iconBtn =
+    'p-2.5 rounded-full text-cream-200 hover:text-gold-300 hover:bg-white/5 transition-colors';
+
   return (
-    <header className="sticky top-0 z-40 bg-cream-100/95 backdrop-blur-md border-b border-gold-200/40">
+    <header className="sticky top-0 z-40 bg-onyx-300 border-b border-gold-400/30">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20">
-          {/* Logo */}
+        <div className="flex items-center justify-between h-16 sm:h-[72px]">
+          {/* Brand */}
           <button
             onClick={() => onNavigate('storefront')}
-            className="flex items-center gap-2 group flex-shrink-0"
+            className="flex items-center gap-3 flex-shrink-0 text-left"
+            aria-label="Yaba's Imitation & Jewellery, home"
           >
             <img
               src={LOGO_PATH}
-              alt="Yaba's Imitation & Jewellery"
-              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full object-cover shadow-gold"
+              alt=""
+              className="w-10 h-10 sm:w-11 sm:h-11 rounded-full object-cover ring-1 ring-gold-400/60"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
-
-            <div className="text-left">
-              <h1 className="font-display text-lg sm:text-xl font-bold text-onyx-300 leading-none tracking-wide">
-                Yaba's
-              </h1>
-              <p className="text-[10px] sm:text-xs text-gold-500 font-medium tracking-widest uppercase leading-none mt-0.5">
-                Imitation & Jewellery
-              </p>
-            </div>
+            <span className="leading-tight">
+              <span className="block font-display text-xl sm:text-2xl text-gold-200">Yaba&apos;s</span>
+              <span className="block text-[11px] sm:text-xs text-cream-300/80 tracking-wide">
+                Imitation &amp; Jewellery
+              </span>
+            </span>
           </button>
 
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-6 lg:gap-8">
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-8 lg:gap-10" aria-label="Main">
             {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={(e) => handleNavClick(e, link.href)}
-                className="text-sm font-medium text-onyx-300 hover:text-gold-500 transition-colors duration-200 relative group whitespace-nowrap"
-              >
+              <a key={link.href} href={link.href} onClick={(e) => handleNavClick(e, link.href)} className={linkClass}>
                 {link.label}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 gold-gradient transition-all duration-300 group-hover:w-full" />
               </a>
             ))}
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            {/* Admin Dashboard */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             {isAdmin && (
               <button
                 onClick={() => onNavigate('admin')}
-                className={`hidden sm:flex p-2 rounded-full hover:bg-cream-200 transition-colors ${
-                  currentPage === 'admin'
-                    ? 'text-gold-500'
-                    : 'text-onyx-300'
+                className={`hidden sm:flex items-center gap-2 rounded-full px-3 py-2 text-sm transition-colors ${
+                  currentPage === 'admin' ? 'text-gold-300' : 'text-cream-200 hover:text-gold-300'
                 }`}
-                aria-label="Admin"
-                title="Admin Dashboard"
               >
-                <User className="h-5 w-5" />
+                <User className="h-[18px] w-[18px]" />
+                Admin
               </button>
             )}
 
-            {/* Logged-out: Sign In */}
             {!user && (
-              <button
-                onClick={onSignIn}
-                className="hidden sm:flex p-2 rounded-full hover:bg-cream-200 transition-colors text-onyx-300"
-                aria-label="Sign In"
-                title="Sign In"
-              >
-                <User className="h-5 w-5" />
+              <button onClick={onSignIn} className={`hidden sm:flex items-center gap-2 rounded-full px-3 py-2 text-sm text-cream-200 hover:text-gold-300 transition-colors`}>
+                <User className="h-[18px] w-[18px]" />
+                Sign in
               </button>
             )}
 
-            {/* My Orders */}
             {user && (
               <button
                 onClick={openMyOrders}
                 className={`hidden sm:flex items-center gap-2 rounded-full px-3 py-2 text-sm transition-colors ${
-                  currentPage === 'my-orders'
-                    ? 'bg-cream-200 text-gold-600'
-                    : 'text-onyx-300 hover:bg-cream-200 hover:text-gold-500'
+                  currentPage === 'my-orders' ? 'text-gold-300' : 'text-cream-200 hover:text-gold-300'
                 }`}
-                aria-label="My Orders"
-                title="My Orders"
               >
-                <Package className="h-5 w-5" />
-                <span>My Orders</span>
+                <Package className="h-[18px] w-[18px]" />
+                My orders
               </button>
             )}
 
-            {/* Shopping Bag */}
-            <button
-              onClick={() => setCartOpen(true)}
-              className="relative p-2 rounded-full hover:bg-cream-200 transition-colors text-onyx-300"
-              aria-label="Shopping bag"
-            >
+            <button onClick={() => setCartOpen(true)} className={`relative ${iconBtn}`} aria-label={`Shopping bag, ${totalItems} item${totalItems === 1 ? '' : 's'}`}>
               <ShoppingBag className="h-5 w-5" />
               {totalItems > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-gold-400 text-cream-100 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center animate-scale-in">
+                <span className="absolute top-0 right-0 bg-gold-300 text-onyx-400 text-[10px] font-semibold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
                   {totalItems}
                 </span>
               )}
             </button>
 
-            {/* Sign Out */}
             {user && (
-              <button
-                onClick={signOut}
-                className="hidden sm:block text-xs font-medium text-onyx-300 hover:text-gold-500 transition-colors whitespace-nowrap"
-              >
-                Sign Out
+              <button onClick={signOut} className="hidden sm:block text-sm text-cream-300/80 hover:text-gold-300 transition-colors whitespace-nowrap px-2">
+                Sign out
               </button>
             )}
 
-            {/* Mobile Menu */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-full hover:bg-cream-200 transition-colors text-onyx-300"
+              className={`md:hidden ${iconBtn}`}
               aria-label="Menu"
               aria-expanded={mobileMenuOpen}
             >
-              {mobileMenuOpen ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Nav */}
+        {/* Mobile nav */}
         {mobileMenuOpen && (
-          <nav className="md:hidden py-4 border-t border-gold-200/30 animate-slide-up">
-            <div className="flex flex-col gap-3">
+          <nav className="md:hidden py-3 border-t border-gold-400/20 animate-fade-in" aria-label="Mobile">
+            <div className="flex flex-col">
               {navLinks.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  onClick={(e) => handleNavClick(e, link.href)}
-                  className="text-sm font-medium text-onyx-300 hover:text-gold-500 transition-colors py-1"
-                >
+                <a key={link.href} href={link.href} onClick={(e) => handleNavClick(e, link.href)} className="py-3 text-base text-cream-100 hover:text-gold-300 transition-colors">
                   {link.label}
                 </a>
               ))}
-
               {user && (
-                <button
-                  onClick={openMyOrders}
-                  className="flex items-center gap-2 text-sm font-medium text-onyx-300 hover:text-gold-500 transition-colors py-1 text-left"
-                >
-                  <Package size={17} />
-                  My Orders
+                <button onClick={openMyOrders} className="flex items-center gap-2 py-3 text-base text-cream-100 hover:text-gold-300 text-left">
+                  <Package size={18} /> My orders
                 </button>
               )}
-
-              {/* Mobile Admin */}
               {isAdmin && (
-                <button
-                  onClick={() => {
-                    onNavigate('admin');
-                    setMobileMenuOpen(false);
-                  }}
-                  className="text-sm font-medium text-onyx-300 hover:text-gold-500 transition-colors py-1 text-left"
-                >
-                  Admin Dashboard
+                <button onClick={() => { onNavigate('admin'); setMobileMenuOpen(false); }} className="py-3 text-base text-cream-100 hover:text-gold-300 text-left">
+                  Admin
                 </button>
               )}
-
-              {/* Mobile Authentication */}
               {user ? (
-                <button
-                  onClick={() => {
-                    void signOut();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="text-sm font-medium text-onyx-300 hover:text-gold-500 transition-colors py-1 text-left"
-                >
-                  Sign Out
+                <button onClick={() => { void signOut(); setMobileMenuOpen(false); }} className="py-3 text-base text-cream-100 hover:text-gold-300 text-left">
+                  Sign out
                 </button>
               ) : (
-                <button
-                  onClick={() => {
-                    onSignIn();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="text-sm font-medium text-onyx-300 hover:text-gold-500 transition-colors py-1 text-left"
-                >
-                  Sign In
+                <button onClick={() => { onSignIn(); setMobileMenuOpen(false); }} className="py-3 text-base text-cream-100 hover:text-gold-300 text-left">
+                  Sign in
                 </button>
               )}
             </div>

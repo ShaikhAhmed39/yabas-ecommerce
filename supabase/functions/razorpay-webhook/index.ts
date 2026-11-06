@@ -1,321 +1,149 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+// Razorpay -> us. Verified by HMAC over the RAW body, de-duplicated by event id, safe to receive twice or out of order.
+// Dashboard setup: Webhook URL = https://<project>.supabase.co/functions/v1/razorpay-webhook
+// Events to tick: payment.authorized, payment.captured, payment.failed, order.paid, refund.created, refund.processed, refund.failed
+import { errorResponse, HttpError } from "../_shared/http.ts";
+import { adminClient } from "../_shared/supabase.ts";
+import { requireEnv } from "../_shared/env.ts";
+import { RazorpayError, fetchPayment, type RzpPayment, verifyWebhookSignature } from "../_shared/razorpay.ts";
+import { SETTLE_ORDER_COLUMNS, type SettleOrder, settlePayment } from "../_shared/payments.ts";
+import { sendMail } from "../_shared/notify.ts";
+import { userEmail } from "../_shared/supabase.ts";
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-    },
-  });
-}
+const reply = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-async function hmacHex(secret: string, body: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    new TextEncoder().encode(body),
-  );
-
-  return Array.from(new Uint8Array(signature))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function safeEqualHex(a: string, b: string): boolean {
-  if (!/^[a-f0-9]{64}$/i.test(a) || !/^[a-f0-9]{64}$/i.test(b)) {
-    return false;
-  }
-
-  const left = a.toLowerCase();
-  const right = b.toLowerCase();
-  let difference = 0;
-
-  for (let i = 0; i < left.length; i++) {
-    difference |= left.charCodeAt(i) ^ right.charCodeAt(i);
-  }
-
-  return difference === 0;
-}
-
-function isRazorpayId(
-  value: unknown,
-  prefix: "order_" | "pay_",
-): value is string {
-  return typeof value === "string" &&
-    value.length <= 100 &&
-    new RegExp(`^${prefix}[A-Za-z0-9]+$`).test(value);
-}
-
-type Claim = {
-  claimed: boolean;
-  reason?: string;
-  claimToken?: string;
-};
+// deno-lint-ignore no-explicit-any
+type Rec = Record<string, any>;
+const isRec = (v: unknown): v is Rec => typeof v === "object" && v !== null && !Array.isArray(v);
 
 Deno.serve(async (req: Request): Promise<Response> => {
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed." }, 405);
-  }
+  if (req.method !== "POST") return reply({ error: "Method not allowed." }, 405);
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const webhookSecret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET");
-
-  if (!supabaseUrl || !serviceRoleKey || !webhookSecret) {
-    console.error("Required webhook configuration is missing.");
-    return jsonResponse({ error: "Webhook is not configured." }, 500);
+  let secret: string;
+  try {
+    secret = requireEnv("RAZORPAY_WEBHOOK_SECRET");
+  } catch (e) {
+    return errorResponse(e);
   }
 
   const rawBody = await req.text();
-  const receivedSignature = req.headers.get("x-razorpay-signature") ?? "";
+  if (!rawBody || rawBody.length > 1_000_000) return reply({ error: "Invalid payload size." }, 400);
+  if (!(await verifyWebhookSignature(rawBody, req.headers.get("x-razorpay-signature") ?? "", secret))) {
+    return reply({ error: "Invalid webhook signature." }, 401);
+  }
   const eventId = req.headers.get("x-razorpay-event-id") ?? "";
-
-  if (rawBody.length === 0 || rawBody.length > 1_000_000) {
-    return jsonResponse({ error: "Invalid webhook payload size." }, 400);
-  }
-
-  const expectedSignature = await hmacHex(webhookSecret, rawBody);
-  if (!safeEqualHex(expectedSignature, receivedSignature)) {
-    return jsonResponse({ error: "Invalid webhook signature." }, 401);
-  }
-
-  if (!eventId || eventId.length > 255) {
-    return jsonResponse({ error: "Missing or invalid event ID." }, 400);
-  }
+  if (!eventId || eventId.length > 255) return reply({ error: "Missing event id." }, 400);
 
   let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawBody);
-  } catch {
-    return jsonResponse({ error: "Invalid JSON payload." }, 400);
+  try { parsed = JSON.parse(rawBody); } catch { return reply({ error: "Invalid JSON." }, 400); }
+  if (!isRec(parsed) || typeof parsed.event !== "string") return reply({ error: "Invalid event." }, 400);
+  const event = parsed.event;
+
+  const db = adminClient();
+  const { data: claim, error: claimError } = await db.rpc("claim_payment_webhook_event", { p_event_id: eventId, p_event_type: event });
+  if (claimError || !isRec(claim)) {
+    console.error("Could not claim webhook event:", claimError?.message);
+    return reply({ error: "Could not claim event." }, 500);
   }
-
-  if (!isRecord(parsed) || typeof parsed.event !== "string") {
-    return jsonResponse({ error: "Invalid event payload." }, 400);
-  }
-
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  // Atomically acquire a lease. The RPC returns a unique claim token so a stale
-  // invocation cannot complete or release a newer invocation's claim.
-  const { data: claimData, error: claimError } = await admin.rpc(
-    "claim_payment_webhook_event",
-    {
-      p_event_id: eventId,
-      p_event_type: parsed.event,
-    },
-  );
-
-  if (claimError || !isRecord(claimData)) {
-    console.error("Could not claim webhook event.", claimError);
-    return jsonResponse({ error: "Could not claim webhook event." }, 500);
-  }
-
-  const claim = claimData as Claim;
-
   if (claim.claimed !== true) {
-    if (claim.reason === "already_processed") {
-      return jsonResponse({ received: true, duplicate: true });
-    }
-    if (claim.reason === "already_claimed") {
-      // Ask Razorpay to retry later. If the active invocation crashes, a later
-      // retry can reclaim the event after the five-minute lease expires.
-      return jsonResponse({ error: "Event is already being processed; retry later." }, 500);
-    }
-    return jsonResponse({ error: "Webhook event could not be claimed." }, 500);
+    if (claim.reason === "already_processed") return reply({ received: true, duplicate: true });
+    return reply({ error: "Event is being processed; retry later." }, 500);
   }
-
-  const claimToken = claim.claimToken;
-  if (typeof claimToken !== "string" || !/^[0-9a-f-]{36}$/i.test(claimToken)) {
-    console.error("Claim RPC returned no valid claim token.");
-    return jsonResponse({ error: "Invalid event claim." }, 500);
-  }
+  const claimToken = String(claim.claimToken ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(claimToken)) return reply({ error: "Invalid claim." }, 500);
 
   let finalized = false;
-
-  const releaseClaim = async (): Promise<void> => {
+  const release = async () => {
     if (finalized) return;
-    const { error } = await admin.rpc("release_payment_webhook_event_claim", {
-      p_event_id: eventId,
-      p_claim_token: claimToken,
-    });
-    if (error) {
-      console.error("Could not release webhook claim.", error);
-    }
-  };
-
-  const markProcessed = async (): Promise<boolean> => {
-    const { data, error } = await admin.rpc("complete_payment_webhook_event", {
-      p_event_id: eventId,
-      p_claim_token: claimToken,
-    });
-
-    if (error || !isRecord(data) || data.success !== true) {
-      console.error("Could not complete webhook event.", error);
-      return false;
-    }
-    finalized = true;
-    return true;
+    const { error } = await db.rpc("release_payment_webhook_event_claim", { p_event_id: eventId, p_claim_token: claimToken });
+    if (error) console.error("Could not release claim:", error.message);
   };
 
   try {
-    const processEvent = async (): Promise<Response> => {
-      // Ignore unrelated event types but record them as processed below.
-      if (parsed.event !== "payment.captured" && parsed.event !== "order.paid") {
-        return jsonResponse({ received: true, ignored: true });
-      }
-
-      const payload = parsed.payload;
-      if (!isRecord(payload)) {
-        return jsonResponse({ error: "Missing event payload." }, 400);
-      }
-
-      // Razorpay payment.captured contains payload.payment.entity. For order.paid,
-      // prefer the payment entity if present; otherwise use the order entity and
-      // its payments array when supplied by Razorpay.
-      let payment: Record<string, unknown> | null = null;
-      if (isRecord(payload.payment) && isRecord(payload.payment.entity)) {
-        payment = payload.payment.entity;
-      } else if (
-        parsed.event === "order.paid" &&
-        isRecord(payload.order) &&
-        isRecord(payload.order.entity)
-      ) {
-        const orderEntity = payload.order.entity;
-        const payments = orderEntity.payments;
-        if (isRecord(payments) && Array.isArray(payments.items)) {
-          const captured = payments.items.find((item) =>
-            isRecord(item) && item.status === "captured"
-          );
-          if (isRecord(captured)) payment = captured;
-        }
-      }
-
-      if (!payment) {
-        return jsonResponse({ error: "Missing payment details." }, 400);
-      }
-
-      const paymentId = payment.id;
-      const razorpayOrderId = payment.order_id;
-      const amount = payment.amount;
-      const currency = payment.currency;
-
-      if (
-        !isRazorpayId(paymentId, "pay_") ||
-        !isRazorpayId(razorpayOrderId, "order_") ||
-        typeof amount !== "number" ||
-        !Number.isSafeInteger(amount) ||
-        amount <= 0 ||
-        currency !== "INR"
-      ) {
-        return jsonResponse({ error: "Invalid payment details." }, 400);
-      }
-
-      if (payment.status !== "captured" || payment.captured !== true) {
-        return jsonResponse({
-          received: true,
-          ignored: true,
-          reason: "Payment is not captured.",
-        });
-      }
-
-      const { data: order, error: orderError } = await admin
-        .from("orders")
-        .select(
-          "id, total_amount, payment_status, razorpay_order_id, razorpay_payment_id, inventory_status",
-        )
-        .eq("razorpay_order_id", razorpayOrderId)
-        .maybeSingle();
-
-      if (orderError) {
-        console.error("Could not retrieve matching order.", orderError);
-        return jsonResponse({ error: "Could not retrieve order." }, 500);
-      }
-
-      if (!order) {
-        return jsonResponse({ error: "Matching order not found." }, 500);
-      }
-
-      const total = Number(order.total_amount);
-      const expectedAmountPaise = Math.round(total * 100);
-
-      if (
-        !Number.isFinite(total) ||
-        !Number.isSafeInteger(expectedAmountPaise) ||
-        expectedAmountPaise <= 0 ||
-        amount !== expectedAmountPaise
-      ) {
-        console.error("Webhook amount does not match order.", {
-          orderId: order.id,
-          razorpayOrderId,
-        });
-        return jsonResponse({ error: "Payment amount mismatch." }, 400);
-      }
-
-      const { data: confirmation, error: confirmationError } = await admin.rpc(
-        "confirm_order_payment_and_commit_inventory",
-        {
-          p_order_id: order.id,
-          p_razorpay_payment_id: paymentId,
-        },
-      );
-
-      if (
-        confirmationError ||
-        !isRecord(confirmation) ||
-        confirmation.success !== true ||
-        confirmation.paymentStatus !== "paid" ||
-        confirmation.inventoryStatus !== "committed"
-      ) {
-        console.error("Webhook payment finalization needs reconciliation.", {
-          orderId: order.id,
-          error: confirmationError,
-        });
-        return jsonResponse(
-          { error: "Order payment/inventory state needs reconciliation." },
-          500,
-        );
-      }
-
-      return jsonResponse({
-        received: true,
-        payment_status: "paid",
-        inventory_status: "committed",
-        alreadyProcessed: confirmation.alreadyProcessed === true,
-      });
-    };
-
-    const response = await processEvent();
-
-    if (response.status >= 400) {
-      await releaseClaim();
-      return response;
+    const result = await handleEvent(db, event, parsed.payload);
+    const { data, error } = await db.rpc("complete_payment_webhook_event", { p_event_id: eventId, p_claim_token: claimToken });
+    if (error || !isRec(data) || data.success !== true) {
+      await release();
+      return reply({ error: "Could not finalize event; retry later." }, 500);
     }
-
-    if (!(await markProcessed())) {
-      await releaseClaim();
-      return jsonResponse({ error: "Could not finalize event; retry later." }, 500);
+    finalized = true;
+    return reply({ received: true, ...result });
+  } catch (e) {
+    await release();
+    if (e instanceof HttpError && e.status < 500) {
+      // A bad/mismatching event will never succeed by retrying; record it and tell Razorpay we got it.
+      console.error(`Webhook ${event} rejected:`, e.message);
+      await db.rpc("complete_payment_webhook_event", { p_event_id: eventId, p_claim_token: claimToken });
+      return reply({ received: true, ignored: true, reason: e.message });
     }
-
-    return response;
-  } catch (error) {
-    console.error("Unexpected webhook error.", error);
-    await releaseClaim();
-    return jsonResponse({ error: "Unexpected webhook error." }, 500);
+    console.error("Webhook processing error:", e instanceof Error ? e.message : e);
+    return reply({ error: "Processing failed; retry later." }, 500);
   }
 });
+
+async function handleEvent(db: ReturnType<typeof adminClient>, event: string, payload: unknown): Promise<Rec> {
+  if (!isRec(payload)) return { ignored: true };
+
+  if (event === "payment.authorized" || event === "payment.captured" || event === "order.paid") {
+    let entity: Rec | null = isRec(payload.payment) && isRec(payload.payment.entity) ? payload.payment.entity : null;
+    if (!entity && isRec(payload.order) && isRec(payload.order.entity) && typeof payload.order.entity.id === "string") {
+      // order.paid without a payment entity: ask Razorpay for the payments on that order
+      const { fetchOrderPayments } = await import("../_shared/razorpay.ts");
+      const list = await fetchOrderPayments(payload.order.entity.id);
+      entity = list.find((p) => p.status === "captured") ?? null;
+    }
+    if (!entity || typeof entity.id !== "string") return { ignored: true, reason: "no payment" };
+
+    // Never trust webhook data blindly: re-read the payment from Razorpay (also protects against reordered events).
+    let payment: RzpPayment;
+    try {
+      payment = await fetchPayment(entity.id);
+    } catch (e) {
+      if (e instanceof RazorpayError) throw new HttpError(502, "Could not read the payment from Razorpay.");
+      throw e;
+    }
+    if (!payment.order_id) return { ignored: true, reason: "payment has no order" };
+
+    const { data: order, error } = await db.from("orders").select(SETTLE_ORDER_COLUMNS).eq("razorpay_order_id", payment.order_id).maybeSingle();
+    if (error) throw new HttpError(500, "Could not load the order.");
+    if (!order) throw new HttpError(500, "Matching order not found yet."); // 5xx -> Razorpay retries (order row may still be saving)
+
+    const outcome = await settlePayment(db, order as SettleOrder, payment);
+    return { outcome: outcome.outcome };
+  }
+
+  if (event === "payment.failed") {
+    const entity = isRec(payload.payment) && isRec(payload.payment.entity) ? payload.payment.entity : null;
+    if (entity && typeof entity.order_id === "string") {
+      // Informational only. The customer can retry on the same Razorpay order, so we do NOT cancel anything here.
+      await db.from("orders").update({ payment_error: String(entity.error_description ?? "Payment failed").slice(0, 300) })
+        .eq("razorpay_order_id", entity.order_id).eq("payment_status", "pending");
+    }
+    return { noted: true };
+  }
+
+  if (event === "refund.created" || event === "refund.processed" || event === "refund.failed") {
+    const entity = isRec(payload.refund) && isRec(payload.refund.entity) ? payload.refund.entity : null;
+    if (!entity || typeof entity.id !== "string") return { ignored: true };
+    const status = event === "refund.processed" ? "processed" : event === "refund.failed" ? "failed" : "pending";
+    const { data, error } = await db.rpc("apply_refund_update", {
+      p_razorpay_refund_id: entity.id, p_status: status,
+      p_speed_processed: entity.speed_processed ?? null,
+      p_error: status === "failed" ? "Razorpay reported the refund as failed" : null,
+    });
+    if (error) throw new HttpError(500, "Could not record the refund update.");
+    const r = data as { matched?: boolean; ignored?: boolean; orderId?: string; previousStatus?: string; status?: string };
+    if (r.matched === false) return { ignored: true, reason: "refund not created by this system" };
+    if (!r.ignored && r.orderId && r.previousStatus !== status && (status === "processed")) {
+      const { data: o } = await db.from("orders").select("user_id,order_number,customer_name").eq("id", r.orderId).maybeSingle();
+      if (o) {
+        await sendMail(await userEmail(db, o.user_id, r.orderId), "refund_processed", {
+          name: o.customer_name, orderNumber: o.order_number, amountRupees: Number(entity.amount ?? 0) / 100 || null,
+        });
+      }
+    }
+    return { refund: status };
+  }
+
+  return { ignored: true };
+}

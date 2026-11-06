@@ -28,3 +28,8 @@ dist-ssr
 supabase/.temp/
 supabase/functions/**/.env
 supabase/.env
+
+# keep the documented templates
+!.env.example
+!supabase/functions/.env.example
+supabase/functions/.env.production

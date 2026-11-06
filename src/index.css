@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Marcellus&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,15 +9,40 @@
     scroll-behavior: smooth;
   }
   body {
-    background-color: #FAF9F6;
-    color: #1C1B1A;
-    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #FAF0E8;
+    color: #3A1020;
+    font-family: 'Jost', system-ui, sans-serif;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 }
 
+@layer base {
+  :focus-visible {
+    outline: 2px solid #C49A45;
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
 @layer utilities {
+  /* The signature shape: a niche arch with a hairline gold echo */
+  .arch {
+    border-top-left-radius: 9999px;
+    border-top-right-radius: 9999px;
+  }
+  .arch-outline {
+    outline: 1px solid rgba(196, 154, 69, 0.75);
+    outline-offset: 7px;
+  }
   .text-balance {
     text-wrap: balance;
   }
@@ -29,16 +54,16 @@
     display: none;
   }
   .gold-gradient {
-    background: linear-gradient(135deg, #E5D4A0 0%, #C9A054 50%, #B8893E 100%);
+    background: linear-gradient(135deg, #E8CF94 0%, #C49A45 55%, #A97B2F 100%);
   }
   .gold-text {
-    background: linear-gradient(135deg, #D9BF78 0%, #C9A054 100%);
+    background: linear-gradient(135deg, #E2C27D 0%, #C49A45 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   .shimmer-bg {
-    background: linear-gradient(90deg, #F5F3EE 25%, #EFEBE3 50%, #F5F3EE 75%);
+    background: linear-gradient(90deg, #F3E4D9 25%, #EAD6C7 50%, #F3E4D9 75%);
     background-size: 200% 100%;
   }
 }

@@ -6,6 +6,8 @@ export interface Product {
   selling_price: number;
   discount_percent: number;
   stock: number;
+  /** shipping weight of one piece, used for the courier booking */
+  weight_grams?: number;
   image_url: string;
   material_type: string;
   polish_finish: string;
@@ -73,6 +75,7 @@ export interface ProductInput {
   selling_price: number;
   discount_percent?: number;
   stock: number;
+  weight_grams?: number;
   image_url?: string;
   material_type?: string;
   polish_finish?: string;

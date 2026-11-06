@@ -15,7 +15,8 @@ import { Lightbox } from '@/components/Lightbox';
 import { AdminPage } from '@/pages/AdminPage';
 import { MyOrders } from '@/pages/MyOrders';
 import { ReturnRequestForm } from '@/components/ReturnRequestForm';
-import { supabase } from '@/lib/supabase';
+import { callFunction } from '@/lib/api';
+import { ProductsProvider } from '@/context/ProductsContext';
 import { uploadReturnPhoto } from '@/utils/returnPhotoUpload';
 import { PolicyPage, isPolicyPath } from '@/pages/PolicyPage';
 
@@ -32,16 +33,6 @@ function Storefront({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const { setCartOpen } = useCart();
   const [authOpen, setAuthOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-
-  useEffect(() => {
-    supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (data) window.__allProducts__ = data;
-      });
-  }, []);
 
   const handleCheckout = () => {
     setCartOpen(false);
@@ -205,108 +196,43 @@ function AppContent() {
             productTitle={selectedReturn.productTitle}
             onCancel={() => navigate('my-orders')}
             onSubmit={async ({ reason, description, photos }) => {
-              if (!user) {
-                throw new Error('Please sign in before submitting a return request.');
-              }
+              if (!user) throw new Error('Please sign in before submitting a return request.');
 
-              // Create the return request first so we have its server-generated ID.
-              const { data, error } = await supabase.functions.invoke(
-                'submit-return-request',
-                {
-                  body: {
-                    order_id: selectedReturn.orderId,
-                    order_item_id: selectedReturn.orderItemId,
-                    reason,
-                    description,
-                  },
-                },
-              );
-
-              if (error) {
-                let message = error.message || 'Unable to submit your return request.';
-                const context = error.context;
-
-                if (context instanceof Response) {
-                  try {
-                    const responseBody = await context.clone().json();
-                    if (typeof responseBody?.error === 'string') {
-                      message = responseBody.error;
-                    }
-                  } catch {
-                    // Keep the SDK error message if the response isn't JSON.
-                  }
-                }
-
-                throw new Error(message);
-              }
-
-              const returnRequestId = data?.return_request?.id;
-
+              // 1) Create the request first: the server gives us its id (and enforces every rule).
+              const created = await callFunction<{ return_request?: { id?: string } }>('submit-return-request', {
+                order_id: selectedReturn.orderId,
+                order_item_id: selectedReturn.orderItemId,
+                reason,
+                description,
+              });
+              const returnRequestId = created.return_request?.id;
               if (!returnRequestId) {
-                throw new Error(
-                  'The server did not confirm a saved return request. Please check My Orders before trying again.',
-                );
+                throw new Error('The server did not confirm a saved return request. Please check My Orders before trying again.');
               }
 
-              // Upload photos to the private bucket, then attach their paths.
-              const uploadedPaths: string[] = [];
-
+              // 2) Upload photos to the private bucket, then 3) attach their paths to the request.
               try {
+                const uploadedPaths: string[] = [];
                 for (const photo of photos) {
-                  const path = await uploadReturnPhoto({
-                    file: photo,
-                    userId: user.id,
-                    returnRequestId,
-                  });
-
-                  uploadedPaths.push(path);
+                  uploadedPaths.push(await uploadReturnPhoto({ file: photo, userId: user.id, returnRequestId }));
                 }
-
                 if (uploadedPaths.length > 0) {
-                  const { data: attachData, error: attachError } =
-                    await supabase.functions.invoke('attach-return-photos', {
-                      body: {
-                        return_request_id: returnRequestId,
-                        photo_paths: uploadedPaths,
-                      },
-                    });
-
-                  if (attachError) {
-                    let message =
-                      attachError.message || 'Unable to attach return photos.';
-                    const context = attachError.context;
-
-                    if (context instanceof Response) {
-                      try {
-                        const responseBody = await context.clone().json();
-                        if (typeof responseBody?.error === 'string') {
-                          message = responseBody.error;
-                        }
-                      } catch {
-                        // Keep the SDK error message if the response isn't JSON.
-                      }
-                    }
-
-                    throw new Error(message);
-                  }
-
-                  if (
-                    !attachData?.success ||
-                    attachData.return_request_id !== returnRequestId
-                  ) {
+                  const attached = await callFunction<{ success?: boolean; return_request_id?: string }>(
+                    'attach-return-photos',
+                    { return_request_id: returnRequestId, photo_paths: uploadedPaths },
+                  );
+                  if (!attached.success || attached.return_request_id !== returnRequestId) {
                     throw new Error('The server did not confirm the photo attachment.');
                   }
                 }
               } catch (photoError) {
                 console.error('Return photo processing failed:', photoError);
                 throw new Error(
-                  photoError instanceof Error
-                    ? `Your return request was created, but photo processing failed: ${photoError.message} Please contact support before submitting another request.`
-                    : 'Your return request was created, but photo processing failed. Please contact support before submitting another request.',
+                  `Your return request was received (see it in My Orders), but the photos could not be attached: ${
+                    photoError instanceof Error ? photoError.message : 'unknown error'
+                  } Please contact us and we will add them for you. Do not submit another request.`,
                 );
               }
-
-              // The form shows success only after all requested photos are attached.
             }}
           />
           <AuthModal
@@ -325,7 +251,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <ProductsProvider>
+        <AppContent />
+      </ProductsProvider>
     </AuthProvider>
   );
 }

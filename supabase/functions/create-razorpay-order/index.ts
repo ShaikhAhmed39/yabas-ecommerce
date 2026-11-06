@@ -173,6 +173,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
+    // Safety net: a live shop must never run on test keys (customers would "pay" with fake cards).
+    if (
+      (Deno.env.get("APP_ENV") ?? "").toLowerCase() === "production" &&
+      razorpayKeyId?.startsWith("rzp_test_")
+    ) {
+      console.error("APP_ENV=production but RAZORPAY_KEY_ID is a TEST key. Refusing checkout.");
+      return response({ error: "Payments are not available right now. Please try again later." }, 503);
+    }
     const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
 
     if (
@@ -237,6 +245,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     const { items, customer, checkout_request_id } = body;
+
+    // Optional extras. Every value is re-validated and priced by the database function.
+    const extras = {
+      coupon_code: typeof body.coupon_code === "string" ? body.coupon_code.trim().slice(0, 40) : "",
+      gift_wrap: body.gift_wrap === true,
+      gift_message: typeof body.gift_message === "string" ? body.gift_message.trim().slice(0, 200) : "",
+      email: typeof body.email === "string" ? body.email.trim().slice(0, 200) : "",
+      consent_version: typeof body.consent_version === "string" ? body.consent_version.trim().slice(0, 40) : "",
+    };
+    if (!extras.consent_version) {
+      return response({ error: "Please accept the Terms & Conditions and policies to continue." }, 400);
+    }
 
     if (!isUuid(checkout_request_id)) {
       return response(
@@ -324,6 +344,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // Anti stock-hoarding: a customer can hold at most 3 unpaid reservations at once.
+    // Abandoned ones are released automatically by the reconcile job after UNPAID_ORDER_EXPIRY_MINUTES.
+    const { count: openReservations } = await admin
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userData.user.id)
+      .eq("payment_status", "pending")
+      .eq("inventory_status", "reserved");
+    if ((openReservations ?? 0) >= 3) {
+      return response(
+        { error: "You have several unpaid checkouts open. Please complete or wait for them to expire, then try again." },
+        429,
+      );
+    }
+
     // Reserve stock and create the internal order + item snapshots in one
     // database transaction. Prices and stock are read by the trusted RPC.
     const customerDetails = customerResult.customer;
@@ -333,12 +368,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }));
 
     const { data: reservationData, error: reservationError } = await admin.rpc(
-      "create_order_with_inventory_reservation",
+      "create_order_v2",
       {
         p_user_id: userData.user.id,
         p_checkout_request_id: checkout_request_id,
         p_customer: customerDetails,
         p_items: rpcItems,
+        p_extras: extras,
       },
     );
 
@@ -348,6 +384,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       if (/insufficient stock|product unavailable|stock reservation failed/i.test(message)) {
         return response({ error: "One or more products are out of stock. Please refresh your cart." }, 409);
+      }
+      const couponMsg = /invalid coupon: (\w+)/i.exec(message);
+      if (couponMsg) {
+        const reasons: Record<string, string> = {
+          invalid: "That coupon code is not valid.",
+          inactive: "That coupon is not active.",
+          not_started: "That coupon is not active yet.",
+          expired: "That coupon has expired.",
+          used_up: "That coupon has been fully used.",
+          already_used: "You have already used that coupon.",
+          min_order: "Your order is below the minimum amount for that coupon.",
+          no_discount: "That coupon does not apply to this order.",
+        };
+        return response({ error: reasons[couponMsg[1]] ?? "That coupon cannot be applied.", code: "coupon_invalid" }, 400);
+      }
+      if (/consent required/i.test(message)) {
+        return response({ error: "Please accept the Terms & Conditions and policies to continue." }, 400);
+      }
+      if (/invalid email|gift message/i.test(message)) {
+        return response({ error: "Please check your email address and gift message." }, 400);
       }
       if (/invalid customer|invalid product|invalid checkout|invalid line amount|minimum online payment/i.test(message)) {
         return response({ error: "Checkout details or cart are invalid. Please review and try again." }, 400);
@@ -421,6 +477,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             amount: totalPaise,
             currency: "INR",
             receipt: orderId,
+            notes: { yaba_order_id: orderId },
           }),
           signal: AbortSignal.timeout(15000),
         },

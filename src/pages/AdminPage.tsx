@@ -1,12 +1,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   Plus, Pencil, Trash2, X, Upload, Loader2, Package, ArrowLeft,
-  ImageIcon, Save, AlertCircle, CheckCircle2, ClipboardList, RefreshCw, Eye, ChevronLeft, ChevronRight, ShoppingBag, Truck
+  ImageIcon, Save, AlertCircle, CheckCircle2, ClipboardList, ShoppingBag
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { AuthModal } from '@/components/AuthModal';
 import { HeroMediaManager } from '@/components/admin/HeroMediaManager';
+import { OrdersPanel } from '@/components/admin/OrdersPanel';
+import { ReturnsPanel } from '@/components/admin/ReturnsPanel';
 import { compressImageToWebP, formatFileSize } from '@/utils/imageCompress';
 import { formatINR, calculateDiscount } from '@/utils/format';
 import type { Product, ProductInput } from '@/types';
@@ -22,6 +25,7 @@ const EMPTY_FORM: ProductInput = {
   selling_price: 0,
   discount_percent: 0,
   stock: 0,
+  weight_grams: 100,
   image_url: '',
   material_type: '',
   polish_finish: '',
@@ -46,569 +50,6 @@ const SUB_CATEGORIES: Record<string, string[]> = {
 
 const OCCASIONS = ['Daily Wear', 'Wedding', 'Festive', 'Party', 'Traditional', 'Office', 'Casual'];
 
-
-type ReturnPhoto = { path: string; signed_url: string };
-
-type ReturnRequestRecord = {
-  id: string;
-  order_id: string;
-  order_item_id: string;
-  user_id: string;
-  reason: string;
-  description: string;
-  status: string;
-  admin_note: string | null;
-  rejection_reason: string | null;
-  pickup_scheduled_at: string | null;
-  refund_amount: number | null;
-  created_at: string;
-  photo_count: number;
-  order: {
-    id: string;
-    user_id: string;
-    total_amount: number;
-    payment_status: string | null;
-    delivery_status: string | null;
-    customer_name: string | null;
-    shipping_address_line1: string | null;
-    shipping_address_line2: string | null;
-    city: string | null;
-    state: string | null;
-    pincode: string | null;
-    primary_phone: string | null;
-    backup_phone: string | null;
-    created_at: string;
-  } | null;
-  item: {
-    id: string;
-    product_title: string;
-    unit_price: number;
-    quantity: number;
-  } | null;
-};
-
-function ReturnManagementPanel() {
-  const [requests, setRequests] = useState<ReturnRequestRecord[]>([]);
-  const [page, setPage] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [loadingReturns, setLoadingReturns] = useState(true);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [returnError, setReturnError] = useState<string | null>(null);
-  const [returnSuccess, setReturnSuccess] = useState<string | null>(null);
-  const [photosFor, setPhotosFor] = useState<string | null>(null);
-  const [photos, setPhotos] = useState<ReturnPhoto[]>([]);
-  const [photosLoading, setPhotosLoading] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  const pageSize = 20;
-
-  const loadReturns = useCallback(async (targetPage = page) => {
-    setLoadingReturns(true);
-    setReturnError(null);
-    try {
-      const { data, error: invokeError } = await supabase.functions.invoke(
-        'manage-return-request',
-        { body: { action: 'list', page: targetPage, page_size: pageSize } },
-      );
-      if (invokeError) throw invokeError;
-      if (!data || !Array.isArray(data.requests)) {
-        throw new Error(data?.error || 'Unexpected response while loading return requests.');
-      }
-      setRequests(data.requests as ReturnRequestRecord[]);
-      setTotal(Number(data.total) || 0);
-      setPage(targetPage);
-    } catch (err: any) {
-      setReturnError(err?.message || 'Failed to load return requests.');
-    } finally {
-      setLoadingReturns(false);
-    }
-  }, [page]);
-
-  useEffect(() => {
-    void loadReturns(0);
-  }, []);
-
-  const performAction = async (
-    request: ReturnRequestRecord,
-    action: string,
-    extra: Record<string, unknown> = {},
-  ) => {
-    setBusyId(request.id);
-    setReturnError(null);
-    setReturnSuccess(null);
-    try {
-      const { data, error: invokeError } = await supabase.functions.invoke(
-        'manage-return-request',
-        {
-          body: {
-            action,
-            return_request_id: request.id,
-            ...extra,
-          },
-        },
-      );
-      if (invokeError) throw invokeError;
-      if (data?.error) throw new Error(data.error);
-      setReturnSuccess(data?.message || 'Return request updated.');
-      await loadReturns(page);
-    } catch (err: any) {
-      setReturnError(err?.message || 'Could not update this return request.');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const handleAction = async (request: ReturnRequestRecord, action: string) => {
-    if (action === 'reject') {
-      const reason = window.prompt('Enter the reason for rejecting this return (required):')?.trim();
-      if (!reason) return;
-      if (reason.length < 3) {
-        setReturnError('Rejection reason must contain at least 3 characters.');
-        return;
-      }
-      await performAction(request, action, { rejection_reason: reason });
-      return;
-    }
-
-    if (action === 'schedule_pickup') {
-      const localDefault = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      localDefault.setMinutes(localDefault.getMinutes() - localDefault.getTimezoneOffset());
-      const value = window.prompt(
-        'Enter pickup date and time in ISO format or local format (example: 2026-10-20T14:30:00+05:30):',
-        localDefault.toISOString(),
-      )?.trim();
-      if (!value) return;
-      const timestamp = Date.parse(value);
-      if (!Number.isFinite(timestamp) || timestamp <= Date.now()) {
-        setReturnError('Enter a valid future pickup date and time.');
-        return;
-      }
-      await performAction(request, action, { pickup_scheduled_at: new Date(timestamp).toISOString() });
-      return;
-    }
-
-    if (action === 'mark_refund_pending') {
-      const maxAmount = Number(request.item?.unit_price ?? 0) * Number(request.item?.quantity ?? 0);
-      const value = window.prompt(
-        `Enter refund amount (maximum â‚¹${maxAmount.toFixed(2)}). This only records refund-pending status; it does not issue a refund.`,
-        maxAmount.toFixed(2),
-      );
-      if (value === null || value.trim() === '') return;
-      const amount = Number(value);
-      if (!Number.isFinite(amount) || amount <= 0 || amount > maxAmount) {
-        setReturnError(`Enter an amount greater than â‚¹0 and no more than â‚¹${maxAmount.toFixed(2)}.`);
-        return;
-      }
-      await performAction(request, action, { refund_amount: Math.round(amount * 100) / 100 });
-      return;
-    }
-
-    const confirmation: Record<string, string> = {
-      approve: 'Approve this return request?',
-      mark_received: 'Mark this returned item as received?',
-      inspection_passed: 'Record that the inspection passed?',
-      inspection_failed: 'Record that the inspection failed?',
-      cancel: 'Cancel this return request?',
-    };
-    if (confirmation[action] && !window.confirm(confirmation[action])) return;
-    await performAction(request, action);
-  };
-
-  const loadPhotos = async (request: ReturnRequestRecord) => {
-    if (photosFor === request.id) {
-      setPhotosFor(null);
-      setPhotos([]);
-      return;
-    }
-    setPhotosFor(request.id);
-    setPhotos([]);
-    setPhotoError(null);
-    setPhotosLoading(true);
-    try {
-      const { data, error: invokeError } = await supabase.functions.invoke(
-        'manage-return-request',
-        { body: { action: 'get_photos', return_request_id: request.id } },
-      );
-      if (invokeError) throw invokeError;
-      if (data?.error) throw new Error(data.error);
-      setPhotos(Array.isArray(data?.photos) ? data.photos : []);
-    } catch (err: any) {
-      setPhotoError(err?.message || 'Could not load return photos.');
-    } finally {
-      setPhotosLoading(false);
-    }
-  };
-
-  const actionButtons = (request: ReturnRequestRecord) => {
-    const actions: { action: string; label: string }[] = [];
-    switch (request.status) {
-      case 'requested':
-        actions.push({ action: 'approve', label: 'Approve' }, { action: 'reject', label: 'Reject' }, { action: 'cancel', label: 'Cancel' });
-        break;
-      case 'approved':
-        actions.push({ action: 'schedule_pickup', label: 'Schedule pickup' }, { action: 'mark_received', label: 'Mark received' }, { action: 'reject', label: 'Reject' }, { action: 'cancel', label: 'Cancel' });
-        break;
-      case 'pickup_scheduled':
-        actions.push({ action: 'mark_received', label: 'Mark received' });
-        break;
-      case 'received':
-        actions.push({ action: 'inspection_passed', label: 'Inspection passed' }, { action: 'inspection_failed', label: 'Inspection failed' });
-        break;
-      case 'inspection_passed':
-        actions.push({ action: 'mark_refund_pending', label: 'Mark refund pending' });
-        break;
-    }
-    return actions;
-  };
-
-  return (
-    <section className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="font-display text-xl font-bold text-onyx-300">Return Management</h2>
-          <p className="text-xs text-onyx-100 mt-1">Review customer requests and manage return status.</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void loadReturns(page)}
-          disabled={loadingReturns}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gold-200/40 bg-cream-50 text-onyx-300 text-sm hover:bg-gold-50 disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loadingReturns ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
-      </div>
-
-      {returnError && (
-        <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-          <span>{returnError}</span>
-        </div>
-      )}
-      {returnSuccess && (
-        <div className="flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-          <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
-          <span>{returnSuccess}</span>
-        </div>
-      )}
-
-      {loadingReturns ? (
-        <div className="flex items-center justify-center py-16 bg-cream-50 rounded-2xl shadow-soft">
-          <Loader2 className="h-7 w-7 animate-spin text-gold-500" />
-          <span className="ml-3 text-sm text-onyx-200">Loading return requestsâ€¦</span>
-        </div>
-      ) : requests.length === 0 ? (
-        <div className="text-center py-16 bg-cream-50 rounded-2xl shadow-soft border border-gold-200/20">
-          <ClipboardList className="h-10 w-10 text-onyx-100/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-onyx-300">No return requests found.</p>
-          <p className="text-xs text-onyx-100 mt-1">Requests will appear here when customers submit them.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {requests.map((request) => {
-            const order = request.order;
-            const item = request.item;
-            const actions = actionButtons(request);
-            const address = [
-              order?.shipping_address_line1,
-              order?.shipping_address_line2,
-              order?.city,
-              order?.state,
-              order?.pincode,
-            ].filter(Boolean).join(', ');
-
-            return (
-              <article key={request.id} className="bg-cream-50 rounded-2xl shadow-soft border border-gold-200/20 overflow-hidden">
-                <div className="p-4 sm:p-5">
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className="text-xs text-onyx-100">Return #{request.id.slice(0, 8)}</span>
-                        <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold bg-gold-50 text-onyx-300 border border-gold-200/40">
-                          {request.status.replace(/_/g, ' ')}
-                        </span>
-                      </div>
-                      <h3 className="font-serif text-lg font-semibold text-onyx-300">
-                        {item?.product_title || 'Product details unavailable'}
-                      </h3>
-                      <p className="text-xs text-onyx-100 mt-1">
-                        Order: {request.order_id.slice(0, 8)} Â· Qty: {item?.quantity ?? 'â€”'} Â· Unit price: {item ? formatINR(Number(item.unit_price)) : 'â€”'}
-                      </p>
-                    </div>
-                    <div className="text-left md:text-right flex-shrink-0">
-                      <p className="text-xs text-onyx-100">Requested</p>
-                      <p className="text-sm text-onyx-300">{new Date(request.created_at).toLocaleString()}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-                    <div className="rounded-xl bg-cream-100 p-3">
-                      <p className="text-[11px] uppercase tracking-wider text-onyx-100 mb-1">Customer</p>
-                      <p className="text-sm font-semibold text-onyx-300">{order?.customer_name || 'Name not provided'}</p>
-                      <p className="text-xs text-onyx-200 mt-1">User ID: {request.user_id}</p>
-                      {order?.primary_phone && <p className="text-xs text-onyx-200 mt-1">Phone: {order.primary_phone}</p>}
-                      {order?.backup_phone && <p className="text-xs text-onyx-200 mt-1">Backup: {order.backup_phone}</p>}
-                      {address && <p className="text-xs text-onyx-200 mt-1">{address}</p>}
-                    </div>
-                    <div className="rounded-xl bg-cream-100 p-3">
-                      <p className="text-[11px] uppercase tracking-wider text-onyx-100 mb-1">Return reason</p>
-                      <p className="text-sm font-semibold text-onyx-300">{request.reason}</p>
-                      <p className="text-sm text-onyx-200 mt-1 whitespace-pre-wrap break-words">{request.description}</p>
-                      {request.rejection_reason && <p className="text-xs text-red-700 mt-2">Rejection reason: {request.rejection_reason}</p>}
-                      {request.admin_note && <p className="text-xs text-onyx-200 mt-2">Admin note: {request.admin_note}</p>}
-                      {request.pickup_scheduled_at && <p className="text-xs text-onyx-200 mt-2">Pickup: {new Date(request.pickup_scheduled_at).toLocaleString()}</p>}
-                      {request.refund_amount !== null && <p className="text-xs text-onyx-200 mt-2">Refund amount recorded: {formatINR(Number(request.refund_amount))}</p>}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 mt-4">
-                    <button
-                      type="button"
-                      onClick={() => void loadPhotos(request)}
-                      disabled={photosLoading && photosFor === request.id}
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gold-200/40 text-xs font-semibold text-onyx-300 hover:bg-gold-50 disabled:opacity-50"
-                    >
-                      {photosLoading && photosFor === request.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
-                      {photosFor === request.id ? 'Hide photos' : `View photos (${request.photo_count})`}
-                    </button>
-                    {actions.map(({ action, label }) => (
-                      <button
-                        key={action}
-                        type="button"
-                        onClick={() => void handleAction(request, action)}
-                        disabled={busyId === request.id}
-                        className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
-                          action === 'reject' || action === 'cancel' || action === 'inspection_failed'
-                            ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
-                            : 'gold-gradient text-cream-100 hover:opacity-90'
-                        }`}
-                      >
-                        {busyId === request.id ? <Loader2 className="h-3.5 w-3.5 inline animate-spin mr-1" /> : null}
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {photosFor === request.id && (
-                    <div className="mt-4 border-t border-gold-200/30 pt-4">
-                      {photoError && <p className="text-sm text-red-700 mb-3">{photoError}</p>}
-                      {photosLoading ? (
-                        <p className="text-xs text-onyx-200">Generating secure photo linksâ€¦</p>
-                      ) : photos.length === 0 ? (
-                        <p className="text-xs text-onyx-100">No photos attached to this request.</p>
-                      ) : (
-                        <>
-                          <p className="text-xs text-onyx-100 mb-3">Secure photo links expire after five minutes.</p>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                            {photos.map((photo) => (
-                              <a
-                                key={photo.path}
-                                href={photo.signed_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="block rounded-xl overflow-hidden border border-gold-200/30 bg-cream-100 aspect-square"
-                                title="Open return photo in a new tab"
-                              >
-                                <img src={photo.signed_url} alt="Customer return evidence" loading="lazy" className="w-full h-full object-cover" />
-                              </a>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-2">
-            <p className="text-xs text-onyx-100">
-              Showing {page * pageSize + 1}â€“{Math.min((page + 1) * pageSize, total)} of {total} requests
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={page === 0 || loadingReturns}
-                onClick={() => void loadReturns(page - 1)}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gold-200/40 text-xs text-onyx-300 disabled:opacity-40"
-              >
-                <ChevronLeft className="h-4 w-4" /> Previous
-              </button>
-              <button
-                type="button"
-                disabled={(page + 1) * pageSize >= total || loadingReturns}
-                onClick={() => void loadReturns(page + 1)}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gold-200/40 text-xs text-onyx-300 disabled:opacity-40"
-              >
-                Next <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-
-type AdminOrder = {
-  id: string;
-  user_id: string;
-  total_amount: number;
-  status: string | null;
-  payment_method: string | null;
-  customer_name: string | null;
-  shipping_address_line1: string | null;
-  shipping_address_line2: string | null;
-  city: string | null;
-  state: string | null;
-  pincode: string | null;
-  primary_phone: string | null;
-  backup_phone: string | null;
-  created_at: string;
-  payment_status: string | null;
-  delivery_status: string | null;
-  delivered_at: string | null;
-};
-
-const DELIVERY_STATUSES = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'processing', label: 'Processing' },
-  { value: 'shipped', label: 'Shipped' },
-  { value: 'out_for_delivery', label: 'Out for delivery' },
-  { value: 'delivered', label: 'Delivered' },
-  { value: 'delivery_failed', label: 'Delivery failed' },
-  { value: 'cancelled', label: 'Cancelled' },
-];
-
-function OrderManagementPanel() {
-  const [orders, setOrders] = useState<AdminOrder[]>([]);
-  const [loadingOrders, setLoadingOrders] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  const loadOrders = useCallback(async (quiet = false) => {
-    if (quiet) setRefreshing(true); else setLoadingOrders(true);
-    setError(null);
-    try {
-      const { data, error: queryError } = await supabase.functions.invoke(
-        'admin-list-orders',
-        { body: {} },
-      );
-      if (queryError) throw queryError;
-      if (data?.error) throw new Error(data.error);
-      if (!Array.isArray(data?.orders)) {
-        throw new Error('The server returned an invalid order list.');
-      }
-      setOrders(data.orders as AdminOrder[]);
-    } catch (err: any) {
-      setError(err?.message || 'Could not load orders. Verify administrator access and the order-list function.');
-    } finally {
-      setLoadingOrders(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => { void loadOrders(); }, [loadOrders]);
-
-  const updateDeliveryStatus = async (order: AdminOrder, nextStatus: string) => {
-    if (nextStatus === (order.delivery_status || 'pending')) return;
-    const label = DELIVERY_STATUSES.find((item) => item.value === nextStatus)?.label || nextStatus;
-    if (!window.confirm(`Change delivery status for order ${order.id.slice(0, 8)} to â€œ${label}â€?`)) return;
-    setBusyId(order.id);
-    setError(null);
-    setSuccess(null);
-    try {
-      const { data, error: updateError } = await supabase.functions.invoke(
-        'admin-update-delivery',
-        {
-          body: {
-            order_id: order.id,
-            delivery_status: nextStatus,
-            expected_delivery_status: order.delivery_status || 'pending',
-          },
-        },
-      );
-
-      if (updateError) throw updateError;
-      if (data?.error) throw new Error(data.error);
-
-      const updatedOrder = data?.order;
-      if (!updatedOrder) {
-        throw new Error('The server did not return the updated order.');
-      }
-
-      setOrders((current) => current.map((item) => item.id === order.id
-        ? {
-            ...item,
-            status: updatedOrder.status,
-            delivery_status: updatedOrder.delivery_status,
-            delivered_at: updatedOrder.delivered_at,
-          }
-        : item));
-      setSuccess(`Order ${order.id.slice(0, 8)} delivery status updated to ${label}.`);
-    } catch (err: any) {
-      setError(err?.message || 'Could not update delivery status. Check your admin RLS policy.');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  return (
-    <section className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="font-display text-xl font-bold text-onyx-300">Order Management</h2>
-          <p className="text-xs text-onyx-100 mt-1">Review customer orders and manage delivery progress.</p>
-        </div>
-        <button type="button" onClick={() => void loadOrders(true)} disabled={refreshing || loadingOrders} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gold-200/40 bg-cream-50 text-onyx-300 text-sm hover:bg-gold-50 disabled:opacity-50">
-          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh orders
-        </button>
-      </div>
-      {error && <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3"><AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" /><span>{error}</span></div>}
-      {success && <div className="flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3"><CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" /><span>{success}</span></div>}
-      {loadingOrders ? (
-        <div className="flex items-center justify-center py-16 bg-cream-50 rounded-2xl shadow-soft"><Loader2 className="h-7 w-7 animate-spin text-gold-500" /><span className="ml-3 text-sm text-onyx-200">Loading ordersâ€¦</span></div>
-      ) : orders.length === 0 ? (
-        <div className="text-center py-16 bg-cream-50 rounded-2xl shadow-soft border border-gold-200/20"><ShoppingBag className="h-10 w-10 text-onyx-100/40 mx-auto mb-3" /><p className="text-sm font-medium text-onyx-300">No orders found.</p><p className="text-xs text-onyx-100 mt-1">Orders will appear here after the checkout flow creates them.</p></div>
-      ) : (
-        <div className="space-y-4">
-          {orders.map((order) => {
-            const address = [order.shipping_address_line1, order.shipping_address_line2, order.city, order.state, order.pincode].filter(Boolean).join(', ');
-            return <article key={order.id} className="bg-cream-50 rounded-2xl shadow-soft border border-gold-200/20 p-4 sm:p-5">
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs text-onyx-100">Order #{order.id.slice(0, 8)} Â· {new Date(order.created_at).toLocaleString()}</p>
-                  <h3 className="font-serif text-lg font-semibold text-onyx-300 mt-1">{order.customer_name || 'Customer name not provided'}</h3>
-                  <p className="text-xs text-onyx-200 mt-1">{order.primary_phone || 'No phone'}{order.backup_phone ? ` Â· Backup: ${order.backup_phone}` : ''}</p>
-                  {address && <p className="text-xs text-onyx-200 mt-1">{address}</p>}
-                  <p className="text-[11px] text-onyx-100 mt-1 break-all">Customer ID: {order.user_id}</p>
-                </div>
-                <div className="md:text-right flex-shrink-0">
-                  <p className="font-display text-xl font-bold text-onyx-300">{formatINR(Number(order.total_amount) || 0)}</p>
-                  <p className="text-xs text-onyx-200 mt-1">Payment: {order.payment_method || 'â€”'} Â· {order.payment_status || 'Unspecified'}</p>
-                  <p className="text-xs text-onyx-200 mt-1">Order status: {order.status || 'â€”'}</p>
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-gold-200/30 flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex items-center gap-2 text-sm text-onyx-300"><Truck className="h-4 w-4 text-gold-500" /><label htmlFor={`delivery-${order.id}`} className="font-medium">Delivery status</label></div>
-                <select id={`delivery-${order.id}`} value={order.delivery_status || 'pending'} onChange={(event) => void updateDeliveryStatus(order, event.target.value)} disabled={busyId === order.id} className="w-full sm:w-auto min-w-48 px-3 py-2.5 bg-white border border-gold-200/50 rounded-lg text-sm text-onyx-300 disabled:opacity-50">
-                  {DELIVERY_STATUSES.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
-                  {order.delivery_status && !DELIVERY_STATUSES.some((status) => status.value === order.delivery_status) && <option value={order.delivery_status}>{order.delivery_status.replace(/_/g, ' ')}</option>}
-                </select>
-                {busyId === order.id && <Loader2 className="h-4 w-4 animate-spin text-gold-500" />}
-                {order.delivered_at && <p className="text-xs text-onyx-100">Delivered: {new Date(order.delivered_at).toLocaleString()}</p>}
-              </div>
-            </article>;
-          })}
-          <p className="text-xs text-onyx-100">Showing up to 100 most recent orders.</p>
-        </div>
-      )}
-    </section>
-  );
-}
 
 export function AdminPage({ onNavigate }: AdminPageProps) {
   const { user, isAdmin, loading: authLoading } = useAuth();
@@ -642,8 +83,8 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
 
       if (err) throw err;
       setProducts(data ?? []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to retrieve inventory listings.');
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to retrieve inventory listings.'));
     } finally {
       setLoading(false);
     }
@@ -664,6 +105,7 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
       selling_price: product.selling_price,
       discount_percent: product.discount_percent,
       stock: product.stock,
+      weight_grams: product.weight_grams ?? 100,
       image_url: product.image_url,
       material_type: product.material_type || '',
       polish_finish: product.polish_finish || '',
@@ -752,8 +194,8 @@ const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
       setForm((prev) => ({ ...prev, image_url: urlData.publicUrl }));
       setImagePreview(urlData.publicUrl);
-    } catch (err: any) {
-      setError(err.message || 'Image asset processing failed.');
+    } catch (err) {
+      setError(errorMessage(err, 'Image asset processing failed.'));
       setUploadInfo(null);
     } finally {
       setUploading(false);
@@ -798,8 +240,8 @@ const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
       setUploadInfo(null);
       setEditingId(null);
       await fetchProducts();
-    } catch (err: any) {
-      setError(err.message || 'Failed to save catalogue data.');
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to save catalogue data.'));
     } finally {
       setSaving(false);
     }
@@ -823,8 +265,8 @@ const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
       if (delError) throw delError;
       setSuccess('Item successfully deleted from database.');
       await fetchProducts();
-    } catch (err: any) {
-      setError(err.message || 'Deletion operation aborted by server.');
+    } catch (err) {
+      setError(errorMessage(err, 'Deletion operation aborted by server.'));
     }
   };
 
@@ -995,9 +437,9 @@ return (
       )}
 
       {showOrders ? (
-        <OrderManagementPanel />
+        <OrdersPanel />
       ) : showReturns ? (
-        <ReturnManagementPanel />
+        <ReturnsPanel />
       ) : showHeroMedia ? (
         <HeroMediaManager />
       ) : (
@@ -1307,6 +749,26 @@ return (
                       className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
                       placeholder="Available Units"
                     />
+                  </div>
+
+                  <div>
+                    <label htmlFor="product-weight" className="block text-xs font-medium text-onyx-200 mb-1.5 uppercase tracking-wider">
+                      Shipping Weight (grams) *
+                    </label>
+                    <input
+                      id="product-weight"
+                      type="number"
+                      required
+                      min="1"
+                      max="20000"
+                      value={form.weight_grams ?? ''}
+                      onChange={(e) =>
+                        setForm({ ...form, weight_grams: Math.min(20000, Math.max(1, Math.floor(Number(e.target.value)) || 1)) })
+                      }
+                      className="w-full px-4 py-3 bg-cream-50 border border-gold-200/30 rounded-xl text-sm text-onyx-300 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200/20 transition-all"
+                      placeholder="e.g. 60 (piece + box)"
+                    />
+                    <p className="mt-1 text-[11px] text-onyx-100">Used for the courier booking and shipping charge. Include the box.</p>
                   </div>
                 </div>
 

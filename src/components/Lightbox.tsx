@@ -2,15 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { X, ShoppingBag, ChevronLeft, ChevronRight, ZoomIn, RotateCcw } from 'lucide-react';
 import type { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
+import { useProducts } from '@/context/ProductsContext';
 import { formatINR, calculateDiscount } from '@/utils/format';
-
-interface LightboxState {
-  product: Product;
-  scale: number;
-  rotation: number;
-  translateX: number;
-  translateY: number;
-}
 
 export function Lightbox() {
   const [open, setOpen] = useState(false);
@@ -21,6 +14,7 @@ export function Lightbox() {
   const [translateX, setTranslateX] = useState(0);
   const [translateY, setTranslateY] = useState(0);
   const { addToCart, setCartOpen } = useCart();
+  const { products: catalogue } = useProducts();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Gesture refs
@@ -40,7 +34,7 @@ export function Lightbox() {
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail as Product;
-      const all = window.__allProducts__ ?? [detail];
+      const all = catalogue.length ? catalogue : [detail];
       setProducts(all);
       const idx = all.findIndex((p) => p.id === detail.id);
       setIndex(idx >= 0 ? idx : 0);
@@ -49,7 +43,7 @@ export function Lightbox() {
     };
     window.addEventListener('open-lightbox', handler);
     return () => window.removeEventListener('open-lightbox', handler);
-  }, [resetTransforms]);
+  }, [resetTransforms, catalogue]);
 
   useEffect(() => {
     if (open) {
@@ -277,9 +271,3 @@ export function Lightbox() {
   );
 }
 
-// Augment window for product gallery reference
-declare global {
-  interface Window {
-    __allProducts__?: Product[];
-  }
-}

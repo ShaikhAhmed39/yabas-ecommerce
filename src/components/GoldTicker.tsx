@@ -20,20 +20,21 @@ export function GoldTicker() {
   return (
     <>
       <div
-        className={`w-full bg-onyx-300 text-cream-100 transition-all duration-500 ${
+        className={`w-full bg-onyx-500 text-cream-100 border-b border-gold-400/20 transition-opacity duration-500 ${
           visible ? 'opacity-100' : 'opacity-0'
         }`}
       >
         <div className="mx-auto max-w-7xl px-4 py-2 flex items-center justify-center">
           <button
             onClick={() => setPopupOpen(true)}
-            className="group flex items-center gap-2 text-xs sm:text-sm font-medium text-cream-100 hover:text-gold-300 transition-colors duration-200 rounded-full px-3 sm:px-4 py-1.5 hover:bg-cream-100/5"
+            className="flex items-center gap-2 text-xs sm:text-sm text-cream-200 hover:text-gold-300 transition-colors duration-200 px-3 sm:px-4 py-2"
           >
-            <TrendingUp className="h-3.5 w-3.5 text-gold-300 animate-pulse" />
+            <TrendingUp className="h-3.5 w-3.5 text-gold-300" aria-hidden />
             <span className="flex items-center gap-1.5">
-              <span className="text-base">✨</span>
-              Check Today&apos;s Mumbai 24K Gold Rate
-              <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-y-0.5" />
+              {goldPrice
+                ? <>Mumbai 24K gold today: <strong className="font-medium text-gold-200">{formatINR(goldPrice.price_per_gram_24k)}</strong> per gram</>
+                : <>See today&apos;s Mumbai 24K gold rate</>}
+              <ChevronDown className="h-3.5 w-3.5" aria-hidden />
             </span>
           </button>
         </div>
@@ -113,6 +114,11 @@ export function GoldTicker() {
                       jeweller for the exact rate. Jewellery pricing also varies
                       with making charges, wastage and GST.
                     </p>
+                    {Date.now() - new Date(goldPrice.timestamp).getTime() > 36 * 3600 * 1000 && (
+                      <p role="status" className="mt-2 text-[11px] font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        This rate has not been refreshed for over a day. Please treat it as old.
+                      </p>
+                    )}
                     <p className="text-[10px] text-onyx-100 mt-2">
                       Last updated:{' '}
                       {new Date(goldPrice.timestamp).toLocaleString('en-IN', {
