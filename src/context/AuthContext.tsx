@@ -16,6 +16,10 @@ interface AuthContextValue {
   /** true until we know BOTH who the user is AND whether they are an admin (prevents a "not allowed" flash) */
   loading: boolean;
   isAdmin: boolean;
+  /** true for a guest checkout session (anonymous Supabase user, no e-mail/password yet) */
+  isGuest: boolean;
+  /** Returns a usable user id: the signed-in user, or a fresh guest session. error is set when guest checkout is switched off. */
+  ensureSession: () => Promise<{ userId: string | null; error: string | null }>;
   /** true after the user opened a password-reset e-mail link */
   recovering: boolean;
   signIn: (email: string, password: string) => Promise<AuthResult>;
@@ -81,7 +85,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   };
 
+  const ensureSession = async () => {
+    const existing = (await supabase.auth.getSession()).data.session;
+    if (existing?.user) return { userId: existing.user.id, error: null };
+    const { data, error } = await supabase.auth.signInAnonymously();
+    if (error || !data.user) {
+      return { userId: null, error: 'Guest checkout is not available right now. Please sign in or create an account to continue.' };
+    }
+    return { userId: data.user.id, error: null };
+  };
+
   const signUp = async (email: string, password: string): Promise<SignUpResult> => {
+    // A guest who creates an account keeps their orders: the same user id gets an e-mail and password.
+    if (user?.is_anonymous) {
+      const { data, error } = await supabase.auth.updateUser({ email: email.trim().toLowerCase(), password });
+      if (error) return { error: error.message };
+      return { error: null, needsConfirmation: Boolean(data.user?.new_email) };
+    }
     const { data, error } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
@@ -115,7 +135,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        session, user, isAdmin, recovering,
+        session, user, isAdmin, recovering, ensureSession,
+        isGuest: Boolean(user?.is_anonymous),
         loading: sessionLoading || adminLoading,
         signIn, signUp, sendPasswordReset, updatePassword, signOut,
       }}

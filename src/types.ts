@@ -9,6 +9,8 @@ export interface Product {
   /** shipping weight of one piece, used for the courier booking */
   weight_grams?: number;
   image_url: string;
+  /** extra photos (every angle); the first photo is always image_url */
+  gallery_urls?: string[];
   material_type: string;
   polish_finish: string;
   dimensions: string;
@@ -77,6 +79,7 @@ export interface ProductInput {
   stock: number;
   weight_grams?: number;
   image_url?: string;
+  gallery_urls?: string[];
   material_type?: string;
   polish_finish?: string;
   dimensions?: string;

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { X, Mail, Lock, Loader2, Sparkles, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { POLICY_LINKS } from '@/lib/policies';
 
 interface AuthModalProps {
   open: boolean;
@@ -33,6 +34,7 @@ export function AuthModal({ open, onClose, title }: AuthModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [agree, setAgree] = useState(false);
   const firstField = useRef<HTMLInputElement>(null);
   const uid = useId();
 
@@ -48,6 +50,7 @@ export function AuthModal({ open, onClose, title }: AuthModalProps) {
       setLoading(false);
       setPassword('');
       setShowPassword(false);
+      setAgree(false);
     }
   }, [open]);
 
@@ -79,6 +82,11 @@ export function AuthModal({ open, onClose, title }: AuthModalProps) {
 
     if (activeMode !== 'forgot' && password.length < (activeMode === 'signin' ? 1 : MIN_PASSWORD)) {
       setError(`Password must be at least ${MIN_PASSWORD} characters.`);
+      return;
+    }
+
+    if (activeMode === 'signup' && !agree) {
+      setError('Please accept the Terms & Conditions and Privacy Policy to create an account.');
       return;
     }
 
@@ -133,7 +141,7 @@ export function AuthModal({ open, onClose, title }: AuthModalProps) {
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby={`${uid}-title`}>
       <div className="absolute inset-0 bg-onyx-500/60 backdrop-blur-md" onClick={recovering ? undefined : onClose} />
 
-      <div className="relative w-full max-w-md bg-cream-100 rounded-3xl shadow-medium overflow-hidden animate-scale-in">
+      <div className="relative w-full max-w-md bg-cream-100 rounded-3xl shadow-medium overflow-hidden animate-scale-in max-h-[92vh] overflow-y-auto">
         <div className="relative bg-gradient-to-br from-onyx-300 to-onyx-400 px-6 pt-8 pb-12 text-center">
           {!recovering && (
             <button onClick={onClose} aria-label="Close" className="absolute top-4 right-4 text-cream-300 hover:text-cream-100 transition-colors">
@@ -215,10 +223,17 @@ export function AuthModal({ open, onClose, title }: AuthModalProps) {
               </div>
             )}
 
+            {activeMode === 'signup' && (
+              <label className="flex cursor-pointer items-start gap-3 text-xs leading-5 text-onyx-300">
+                <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-5 w-5 flex-shrink-0 accent-[#0F4C4A]" />
+                <span>I agree to the <a href={POLICY_LINKS.terms.href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Terms &amp; Conditions</a> and the <a href={POLICY_LINKS.privacy.href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Privacy Policy</a>.</span>
+              </label>
+            )}
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3.5 gold-gradient text-cream-100 font-medium rounded-xl shadow-gold hover:scale-[1.01] transition-transform disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full min-h-12 flex items-center justify-center gap-2 py-3.5 gold-gradient text-cream-100 font-medium rounded-xl shadow-gold hover:scale-[1.01] transition-transform disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-label="Please wait" /> : (
                 activeMode === 'signin' ? 'Sign In'

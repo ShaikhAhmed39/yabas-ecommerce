@@ -1,3 +1,6 @@
+import { useStoreConfig } from '@/lib/storeConfig';
+import { useAuth } from '@/context/AuthContext';
+import { fillPolicyTokens, hasUnfilledTokens } from '@/lib/policies';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 
 const policies = {
@@ -82,6 +85,9 @@ export function isPolicyPath(pathname: string) {
 }
 
 export function PolicyPage() {
+  const { config } = useStoreConfig();
+  const { isAdmin } = useAuth();
+  const fill = (t: string) => fillPolicyTokens(t, config);
   const path = window.location.pathname.replace(/\/$/, '') || '/privacy-policy';
   const policy = policies[path as keyof typeof policies] ?? policies['/privacy-policy'];
   return (
@@ -99,19 +105,19 @@ export function PolicyPage() {
         <div className="mb-8 rounded-2xl border border-gold-400/25 bg-white/70 p-6 sm:p-10">
           <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-gold-500"><ShieldCheck size={16} /> {policy.eyebrow}</div>
           <h1 className="font-display text-3xl font-semibold leading-tight sm:text-5xl">{policy.title}</h1>
-          <p className="mt-4 text-sm text-onyx-300/65">Effective / last updated: {policy.updated}</p>
-          <p className="mt-5 max-w-3xl text-sm leading-7 text-onyx-300/75">Please read this page carefully. Text in square brackets is a placeholder and must be completed and verified before the website is made public.</p>
+          <p className="mt-4 text-sm text-onyx-300/65">Effective / last updated: {fill(policy.updated)}</p>
+          {isAdmin && policy.sections.some(([h, b]) => hasUnfilledTokens(fill(h + b))) && <p className="mt-5 max-w-3xl rounded-md bg-gold-100 p-3 text-sm leading-6 text-onyx-300">Admin note: some [PLACEHOLDERS] below are not filled yet. Add them in Admin → Store settings; customers see this page exactly as shown here.</p>}
         </div>
         <article className="space-y-5">
           {policy.sections.map(([heading, body]) => (
             <section key={heading} className="rounded-xl border border-onyx-300/10 bg-white/65 p-5 sm:p-7">
-              <h2 className="font-serif text-lg font-semibold sm:text-xl">{heading}</h2>
-              <p className="mt-3 text-sm leading-7 text-onyx-300/80 sm:text-base">{body}</p>
+              <h2 className="font-serif text-lg font-semibold sm:text-xl">{fill(heading)}</h2>
+              <p className="mt-3 text-sm leading-7 text-onyx-300/80 sm:text-base">{fill(body)}</p>
             </section>
           ))}
         </article>
         <div className="mt-8 rounded-xl bg-onyx-300 p-5 text-sm leading-6 text-cream-100/80 sm:p-6">
-          <strong className="text-cream-100">Need help?</strong> Contact [SUPPORT EMAIL] or [SUPPORT PHONE]. Complete these contact details before launch.
+          <strong className="text-cream-100">Need help?</strong> Contact {fillPolicyTokens('[SUPPORT EMAIL]', config) === '[SUPPORT EMAIL]' ? '' : fillPolicyTokens('[SUPPORT EMAIL]', config) + ' or '}{fillPolicyTokens('[SUPPORT PHONE]', config)}.
         </div>
         <nav aria-label="Other policies" className="mt-8 flex flex-wrap gap-x-5 gap-y-3 text-sm">
           {Object.entries(policies).filter(([url]) => url !== path).map(([url, item]) => <a key={url} href={url} className="text-onyx-300/70 underline decoration-gold-400/60 underline-offset-4 hover:text-gold-500">{item.title}</a>)}
