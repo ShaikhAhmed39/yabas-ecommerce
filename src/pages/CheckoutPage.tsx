@@ -176,7 +176,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
 
   const pay = async () => {
     setError(null); setNotice(null);
-    if (!agree) { setError('Please tick the box to accept the Terms & Conditions and policies.'); return; }
+    if (!agree) { setError('Please tick the box to accept the Terms & Conditions and policies.'); document.getElementById('consent-box')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
     if (!validateStep0()) { setStep(0); return; }
     if (items.length === 0) { setError('Your bag is empty.'); return; }
     setPaying(true);
@@ -415,7 +415,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
                   <p className="mt-2 flex items-center gap-1.5 text-[13px] text-ink/65"><ShieldCheck className="h-4 w-4 text-onyx-300" aria-hidden />We never see or store your card or UPI details.</p></div>
               </div>
 
-              <label className="flex cursor-pointer items-start gap-3 rounded-md border border-gold-500/40 bg-cream-50 p-4">
+              <label id="consent-box" className="flex cursor-pointer items-start gap-3 rounded-md border border-gold-500/40 bg-cream-50 p-4">
                 <input type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); setError(null); }} className="mt-1 h-5 w-5 flex-shrink-0 accent-[#0F4C4A]" />
                 <span className="text-sm leading-6 text-ink/90">
                   I have read and agree to the{' '}

@@ -95,3 +95,20 @@ cd supabase/functions && deno test --allow-env _shared/tests/
 npm run typecheck && npm run lint && npm run build
 ```
 (The SQL tests need a local Postgres 16; see the header of `supabase/tests/run.sh`.)
+
+## 10. New storefront, guest checkout, scratch cards (this release)
+
+**Apply the migration** `supabase/migrations/20261102090000_storefront_checkout_scratch_cards.sql` (it is additive; nothing is dropped). Then deploy `create-razorpay-order`, `verify-razorpay-payment`, `razorpay-webhook`, `manage-return-request`, `admin-shipments`, `courier-webhook`, `reconcile-orders` and the new `track-order`.
+
+**Turn on guest checkout (required):** Supabase dashboard -> Authentication -> Sign In / Providers -> enable **Anonymous sign-ins**. Customers can then pay without an account; the order belongs to a guest session, they can track it with order number + phone, and later "Create account" converts the same session so their orders stay with them. Without this switch checkout asks the customer to sign in instead.
+Also in Authentication -> Settings, enable CAPTCHA/bot protection if you see abuse of guest sessions.
+
+**Storage:** the `product-images` bucket must allow your admin account to upload (already used for hero/product photos). Products now hold several photos (`gallery_urls`); no video is offered for products.
+
+**Store settings (Admin -> Store settings):** fill business name, address, support e-mail/phone, WhatsApp number, grievance contact, GSTIN, delivery fee / free-delivery threshold / gift-wrap fee. These replace the `[PLACEHOLDERS]` in the Terms, Privacy, Returns, Shipping and Contact pages and drive the footer and WhatsApp button. Nothing needs a code change.
+
+**Scratch cards:** Admin -> Scratch cards. Example prizes start OFF; choose affordable prizes, switch them on, then switch the feature on. The prize is chosen on the server when payment is confirmed and sent to the browser only when the customer scratches.
+
+**Terms consent:** checkout and sign-up require ticking the Terms/Privacy (and at checkout Returns/Shipping) box. The accepted version (`POLICY_VERSION` in `src/lib/policies.ts`) and time are stored on the order. Bump the version when you change those policies.
+
+**Hash routes:** the storefront uses `#/shop`, `#/product/<id>`, `#/checkout`, `#/track`, `#/wishlist`, `#/orders`, `#/admin`. Policy pages keep their normal paths.

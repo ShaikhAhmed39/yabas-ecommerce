@@ -13,7 +13,7 @@ export function BottomNav({ route }: { route: Route }) {
   return (
     <nav aria-label="Quick navigation" className="safe-bottom fixed inset-x-0 bottom-0 z-30 flex border-t border-gold-400/40 bg-onyx-300 lg:hidden">
       <a href="#/" className={item(route.name === 'home')}><Home className="h-5 w-5" />Home</a>
-      <a href="#/shop" className={item(route.name === 'shop' || route.name === 'product')}><LayoutGrid className="h-5 w-5" />Shop</a>
+      <a href="#/shop" className={item(route.name === 'shop')}><LayoutGrid className="h-5 w-5" />Shop</a>
       <a href="#/wishlist" className={item(route.name === 'wishlist')}>
         <Heart className="h-5 w-5" />Wishlist
         {wish.ids.size > 0 && <span className="absolute right-[28%] top-1 grid h-4 min-w-4 place-items-center rounded-full bg-gold-400 px-1 text-[9px] font-semibold text-ink">{wish.ids.size}</span>}

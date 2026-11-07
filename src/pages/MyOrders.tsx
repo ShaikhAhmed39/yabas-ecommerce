@@ -5,6 +5,7 @@ import { callFunction, errorMessage } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { Stepper } from '@/components/orders/Stepper';
 import { ShipmentCard } from '@/components/orders/ShipmentCard';
+import { RewardsSection } from '@/components/orders/RewardsSection';
 import {
   canCancel,
   forwardSteps,
@@ -274,6 +275,8 @@ export function MyOrders({ onBack, onRequestReturn }: MyOrdersProps) {
             <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
+
+        <RewardsSection />
 
         {notice && (
           <div role="status" className="mb-6 flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
