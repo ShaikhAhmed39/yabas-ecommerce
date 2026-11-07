@@ -98,7 +98,7 @@ export function ProductPage({ id }: { id: string }) {
             <p className="mt-3 flex flex-wrap items-baseline gap-3">
               <span className="text-3xl font-semibold text-ink">{formatINR(product.selling_price)}</span>
               {hasDiscount && <><span className="text-lg text-ink/55 line-through">{formatINR(product.original_price)}</span>
-                {discount > 0 && <span className="rounded-sm bg-maroon-500 px-2 py-0.5 text-sm text-gold-100">{discount}% off</span>}</>}
+                {discount > 0 && <span className="rounded-sm bg-onyx-300 px-2 py-0.5 text-sm text-gold-100">{discount}% off</span>}</>}
             </p>
             <p className="mt-1 text-[13px] text-ink/60">Delivery charges, if any, are shown at checkout.</p>
 
@@ -120,7 +120,7 @@ export function ProductPage({ id }: { id: string }) {
 
             <div className="mt-6 hidden gap-3 lg:grid lg:grid-cols-2">
               <button onClick={add} disabled={out || maxQty <= 0} className="min-h-[52px] rounded border-2 border-onyx-300 font-display text-sm tracking-[0.12em] text-onyx-300 hover:bg-onyx-300 hover:text-gold-100 disabled:opacity-40">ADD TO BAG</button>
-              <button onClick={buyNow} disabled={out || maxQty <= 0} className="min-h-[52px] rounded bg-maroon-500 font-display text-sm tracking-[0.12em] text-gold-100 hover:bg-maroon-600 disabled:opacity-40">BUY NOW</button>
+              <button onClick={buyNow} disabled={out || maxQty <= 0} className="min-h-[52px] rounded bg-onyx-300 font-display text-sm tracking-[0.12em] text-gold-100 hover:bg-onyx-200 disabled:opacity-40">BUY NOW</button>
             </div>
             {!out && maxQty <= 0 && <p className="mt-2 text-sm text-maroon-500">You already have the maximum available in your bag.</p>}
 
@@ -183,7 +183,7 @@ export function ProductPage({ id }: { id: string }) {
       {/* Mobile action bar */}
       <div className="safe-bottom fixed inset-x-0 bottom-0 z-30 flex gap-3 border-t border-gold-500/40 bg-cream-100 px-4 pt-3 pb-3 lg:hidden">
         <button onClick={add} disabled={out || maxQty <= 0} className="min-h-12 flex-1 rounded border-2 border-onyx-300 font-display text-xs tracking-[0.1em] text-onyx-300 disabled:opacity-40">ADD TO BAG</button>
-        <button onClick={buyNow} disabled={out || maxQty <= 0} className="min-h-12 flex-1 rounded bg-maroon-500 font-display text-xs tracking-[0.1em] text-gold-100 disabled:opacity-40">{out ? 'SOLD OUT' : 'BUY NOW'}</button>
+        <button onClick={buyNow} disabled={out || maxQty <= 0} className="min-h-12 flex-1 rounded bg-onyx-300 font-display text-xs tracking-[0.1em] text-gold-100 disabled:opacity-40">{out ? 'SOLD OUT' : 'BUY NOW'}</button>
       </div>
     </div>
   );

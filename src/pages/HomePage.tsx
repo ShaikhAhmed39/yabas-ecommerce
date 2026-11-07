@@ -39,8 +39,8 @@ export function HomePage() {
 
   return (
     <>
-      <div className="bg-maroon-500 text-gold-200">
-        <div className="mx-auto flex max-w-7xl justify-around gap-2 px-2 py-2 font-display text-[10px] tracking-[0.08em] sm:text-xs">
+      <div className="border-b border-cream-400 bg-cream-200 text-ink">
+        <div className="mx-auto flex max-w-7xl justify-around gap-2 px-2 py-2 text-[10px] font-medium uppercase tracking-[0.14em] sm:text-xs">
           <span>{freeOver > 0 ? `FREE DELIVERY OVER ${formatINR(freeOver)}` : 'DELIVERED ACROSS INDIA'}</span>
           <span>7-DAY RETURNS</span>
           <span>SECURE PAYMENTS</span>
@@ -52,7 +52,7 @@ export function HomePage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {quick.map((q) => (
             <a key={q.label} href={q.href} {...(q.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-              className="frame-gold flex min-h-14 items-center gap-3 rounded-md bg-cream-50 px-3.5 py-3 font-display text-[12px] tracking-[0.04em] text-onyx-300 transition-colors hover:bg-cream-200 sm:text-[13px]">
+              className="frame-gold flex min-h-14 items-center gap-3 rounded-md bg-cream-50 px-3.5 py-3 text-[11px] font-medium uppercase tracking-[0.14em] text-ink transition-colors hover:bg-cream-200 sm:text-[12px]">
               <q.icon className="h-5 w-5 flex-shrink-0 text-gold-500" aria-hidden />{q.label}
             </a>
           ))}
@@ -72,11 +72,11 @@ export function HomePage() {
           <SectionHead title="Shop by category" deva="श्रेणियाँ" />
           <div className="mx-auto flex max-w-7xl gap-5 overflow-x-auto px-5 pb-3 scrollbar-hide sm:justify-center sm:gap-8">
             {categories.map(([name, img], i) => (
-              <a key={name} href={shopHref(name)} className="w-[78px] flex-shrink-0 text-center sm:w-24">
-                <span className={`mb-2 block aspect-square overflow-hidden rounded-full border-2 border-gold-500 outline outline-1 outline-offset-[3px] outline-gold-500 ${i % 2 ? 'jewel-panel-maroon' : 'jewel-panel'}`}>
+              <a key={name} href={shopHref(name)} className="w-[112px] flex-shrink-0 text-center sm:w-36">
+                <span className={`mb-3 block aspect-[3/4] overflow-hidden rounded-t-full border border-gold-500/60 ${i % 2 ? 'jewel-panel-maroon' : 'jewel-panel'}`}>
                   <img src={img || PLACEHOLDER_IMG} alt="" loading="lazy" className="h-full w-full object-cover" />
                 </span>
-                <span className="text-[13px] text-ink">{name}</span>
+                <span className="font-display text-[19px] text-ink">{name}</span>
               </a>
             ))}
           </div>
@@ -89,13 +89,13 @@ export function HomePage() {
           <SectionHead title="Trending now" deva="लोकप्रिय" sub="Pieces our customers keep coming back for." />
           <Section>
             <div className="mx-auto grid max-w-3xl grid-cols-2 gap-3 sm:gap-6">
-              {trending.map((p, i) => (
+              {trending.map((p) => (
                 <a key={p.id} href={`#/product/${p.id}`}
-                  className={`group relative block aspect-[3/4.3] overflow-hidden rounded-t-full border-2 border-gold-500 outline outline-1 -outline-offset-[7px] outline-gold-400 ${i % 2 ? 'jewel-panel' : 'jewel-panel-maroon'}`}>
+                  className={`group relative block aspect-[3/4.3] overflow-hidden rounded-t-full border border-gold-500/60 jewel-panel`}>
                   <img src={p.image_url || PLACEHOLDER_IMG} alt={p.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
                   <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-5 pt-14 text-center">
                     <span className="block line-clamp-1 font-display text-sm text-gold-100 sm:text-base">{p.title}</span>
-                    <span className="mt-2 inline-block rounded-sm bg-gold-200 px-3 py-1 font-display text-[11px] tracking-wider text-ink">SHOP NOW</span>
+                    <span className="mt-2 inline-block border-b border-white pb-0.5 text-[11px] font-medium uppercase tracking-[0.2em] text-white">Shop now</span>
                   </span>
                 </a>
               ))}
@@ -110,7 +110,7 @@ export function HomePage() {
           <SectionHead title="Shop by occasion" deva="अवसर" />
           <div className="mx-auto flex max-w-7xl gap-2.5 overflow-x-auto px-5 pb-2 scrollbar-hide sm:flex-wrap sm:justify-center">
             {occasions.map((o) => (
-              <a key={o} href={shopHref('All', o)} className="flex-shrink-0 rounded-full border border-gold-500 bg-cream-50 px-5 py-2.5 font-display text-xs tracking-[0.06em] text-onyx-300 transition-colors hover:bg-onyx-300 hover:text-gold-100">{o}</a>
+              <a key={o} href={shopHref('All', o)} className="flex-shrink-0 rounded-full border border-cream-400 bg-white px-5 py-2.5 text-[11px] font-medium uppercase tracking-[0.14em] text-ink transition-colors hover:bg-onyx-300 hover:text-white">{o}</a>
             ))}
           </div>
         </section>
@@ -131,14 +131,14 @@ export function HomePage() {
           )}
           {products.length > 8 && (
             <div className="mt-8 text-center">
-              <a href={shopHref()} className="inline-flex min-h-12 items-center rounded bg-onyx-300 px-10 font-display text-sm tracking-[0.12em] text-gold-200 hover:bg-onyx-200">VIEW ALL PIECES</a>
+              <a href={shopHref()} className="inline-flex min-h-12 items-center bg-onyx-300 px-10 text-[12px] font-medium uppercase tracking-[0.2em] text-white hover:bg-onyx-200">View all pieces</a>
             </div>
           )}
         </Section>
       </section>
 
       <Section className="py-8">
-        <div className="jaali-maroon grid grid-cols-2 gap-x-3 gap-y-6 rounded-lg border-2 border-gold-400 px-4 py-7 text-center text-[12px] text-cream-100 sm:grid-cols-4 sm:text-sm">
+        <div className="jaali-maroon grid grid-cols-2 gap-x-3 gap-y-6 px-4 py-7 text-center text-[12px] text-cream-100 sm:grid-cols-4 sm:text-sm">
           {[
             { i: Lock, t: 'Secure payments', d: 'UPI, cards and netbanking via Razorpay' },
             { i: RotateCcw, t: '7-day returns', d: 'Raise it online from My orders' },
@@ -151,12 +151,12 @@ export function HomePage() {
       </Section>
 
       <Section className="py-4">
-        <div className="relative overflow-hidden rounded-lg border-2 border-gold-400 bg-gradient-to-br from-onyx-300 to-onyx-400 px-6 py-8 text-cream-100 sm:px-12 sm:py-10">
+        <div className="relative overflow-hidden bg-onyx-300 px-6 py-8 text-cream-100 sm:px-12 sm:py-10">
           <div className="relative z-10 max-w-md">
             <p className="font-deva text-gold-200">उपहार</p>
             <h2 className="font-display text-2xl tracking-wide text-gold-100 sm:text-3xl">Make it a gift</h2>
             <p className="mt-2 text-sm text-cream-100/90 sm:text-base">Choose gift wrap and add a personal message at checkout. We include it with the parcel.</p>
-            <a href={shopHref()} className="mt-5 inline-flex min-h-11 items-center rounded bg-gold-300 px-6 font-display text-xs tracking-[0.12em] text-ink hover:bg-gold-200">CHOOSE A GIFT</a>
+            <a href={shopHref()} className="mt-5 inline-flex min-h-11 items-center border border-gold-400 px-6 text-[11px] font-medium uppercase tracking-[0.2em] text-gold-100 hover:bg-white/10">Choose a gift</a>
           </div>
           <Gift className="absolute -right-4 -top-4 h-44 w-44 text-gold-400/15 sm:right-8 sm:h-60 sm:w-60" aria-hidden />
         </div>

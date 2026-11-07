@@ -28,8 +28,8 @@ export function SectionHead({ title, sub, deva, light }: { title: string; sub?: 
   return (
     <div className="mx-auto mb-7 max-w-2xl px-4 text-center">
       {deva && <p className={`font-deva text-base ${light ? 'text-gold-200' : 'text-maroon-500'}`}>{deva}</p>}
-      <h2 className={`font-display text-2xl tracking-[0.08em] sm:text-3xl ${light ? 'text-gold-100' : 'text-onyx-300'}`}>{title}</h2>
-      {sub && <p className={`mt-2 text-sm sm:text-base ${light ? 'text-cream-200/85' : 'text-ink/70'}`}>{sub}</p>}
+      <h2 className={`font-display text-3xl tracking-[0.01em] sm:text-4xl ${light ? 'text-gold-100' : 'text-onyx-300'}`}>{title}</h2>
+      {sub && <p className={`mt-2 text-[15px] ${light ? 'text-cream-200/85' : 'text-ink/70'}`}>{sub}</p>}
     </div>
   );
 }

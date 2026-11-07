@@ -225,7 +225,7 @@ export function AuthModal({ open, onClose, title }: AuthModalProps) {
 
             {activeMode === 'signup' && (
               <label className="flex cursor-pointer items-start gap-3 text-xs leading-5 text-onyx-300">
-                <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-5 w-5 flex-shrink-0 accent-[#0F4C4A]" />
+                <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-5 w-5 flex-shrink-0 accent-[#16130F]" />
                 <span>I agree to the <a href={POLICY_LINKS.terms.href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Terms &amp; Conditions</a> and the <a href={POLICY_LINKS.privacy.href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Privacy Policy</a>.</span>
               </label>
             )}

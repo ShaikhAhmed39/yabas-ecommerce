@@ -20,7 +20,7 @@ export function GoldTicker() {
   return (
     <>
       <div
-        className={`w-full bg-onyx-500 text-cream-100 border-b border-gold-400/20 transition-opacity duration-500 ${
+        className={`w-full bg-onyx-300 text-gold-200 border-b border-black transition-opacity duration-500 ${
           visible ? 'opacity-100' : 'opacity-0'
         }`}
       >

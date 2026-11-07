@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Jost:wght@300;400;500;600&family=Noto+Serif+Devanagari:wght@500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&family=Noto+Serif+Devanagari:wght@500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,8 +9,8 @@
     scroll-behavior: smooth;
   }
   body {
-    background-color: #FDF3E3;
-    color: #2B1410;
+    background-color: #FAF8F4;
+    color: #16130F;
     font-family: 'Jost', system-ui, sans-serif;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
@@ -20,7 +20,7 @@
 
 @layer base {
   :focus-visible {
-    outline: 2px solid #E2B04F;
+    outline: 2px solid #A98445;
     outline-offset: 2px;
   }
   @media (prefers-reduced-motion: reduce) {
@@ -40,7 +40,7 @@
     border-top-right-radius: 9999px;
   }
   .arch-outline {
-    outline: 1px solid rgba(226, 176, 79, 0.8);
+    outline: 1px solid rgba(169, 132, 69, 0.7);
     outline-offset: 7px;
   }
   .text-balance {
@@ -54,44 +54,43 @@
     display: none;
   }
   .gold-gradient {
-    background: linear-gradient(135deg, #F6DFA8 0%, #E2B04F 55%, #B8862D 100%);
+    background: linear-gradient(135deg, #E8D9B8 0%, #C9A96A 55%, #A98445 100%);
   }
   .gold-text {
-    background: linear-gradient(135deg, #F6DFA8 0%, #E2B04F 100%);
+    background: linear-gradient(135deg, #E8D9B8 0%, #C9A96A 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   .shimmer-bg {
-    background: linear-gradient(90deg, #F7E8CC 25%, #EBD5A8 50%, #F7E8CC 75%);
+    background: linear-gradient(90deg, #F3EDE0 25%, #ECE2CF 50%, #F3EDE0 75%);
     background-size: 200% 100%;
   }
 }
 
-/* ===== Heritage Jaali: lattice, scallop and double-frame helpers ===== */
-:root {
-  --jaali: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44'%3E%3Cg fill='none' stroke='%23e2b04f' stroke-opacity='.38'%3E%3Cpath d='M22 0 44 22 22 44 0 22Z'/%3E%3Ccircle cx='22' cy='22' r='7'/%3E%3C/g%3E%3C/svg%3E");
-}
+/* ===== Editorial Luxe: ivory, ink, hairline gold ===== */
 @layer utilities {
-  .jaali-teal { background-color: #0F4C4A; background-image: var(--jaali); }
-  .jaali-maroon { background-color: #7B1E3A; background-image: var(--jaali); }
-  .scallop-teal {
-    height: 14px;
-    background: radial-gradient(circle at 11px 0, #0F4C4A 10px, transparent 11px) 0 0 / 22px 14px repeat-x;
-  }
-  .scallop-ivory {
-    height: 14px;
-    background: radial-gradient(circle at 11px 0, #FDF3E3 10px, transparent 11px) 0 0 / 22px 14px repeat-x;
-  }
-  .frame-gold { border: 2px solid #B8862D; outline: 1px solid #B8862D; outline-offset: -6px; }
-  .frame-gold-light { border: 2px solid #E2B04F; outline: 1px solid #E2B04F; outline-offset: -6px; }
-  .jewel-panel { background: radial-gradient(circle at 50% 38%, #12615D, #072B29); }
-  .jewel-panel-maroon { background: radial-gradient(circle at 50% 38%, #8A2A4C, #32081A); }
+  .jaali-teal, .jaali-maroon { background-color: #16130F; background-image: none; }
+  .jaali-maroon { background-color: #1F1A14; }
+  .scallop-teal, .scallop-ivory { height: 1px; background: #E6DFD2; }
+  .frame-gold { border: 1px solid #E6DFD2; outline: none; }
+  .frame-gold-light { border: 1px solid #C9A96A; outline: none; }
+  .jewel-panel, .jewel-panel-maroon { background: linear-gradient(170deg, #ECE2CF, #D9C49A); }
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 }
-.orn-divider { display: flex; align-items: center; gap: 12px; color: #B8862D; font-size: 12px; letter-spacing: .3em; }
-.orn-divider::before, .orn-divider::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, #B8862D); }
-.orn-divider::after { background: linear-gradient(270deg, transparent, #B8862D); }
+/* Square, quiet edges like the editorial design (the admin keeps its own softer cards) */
+.rounded, .rounded-md { border-radius: 2px; }
+/* Serif for headings; labels on buttons and links use the clean sans */
+button.font-display, a.font-display, label.font-display, summary.font-display, span.font-display.label {
+  font-family: 'Jost', system-ui, sans-serif; font-weight: 500;
+}
+.font-display { font-weight: 500; }
+/* The Devanagari accents belong to the old theme */
+.font-deva { display: none; }
+.orn-divider { display: flex; align-items: center; gap: 14px; color: #A98445; font-size: 9px; letter-spacing: .3em; }
+.orn-divider::before, .orn-divider::after { content: ""; flex: 1; height: 1px; background: #E6DFD2; }
+.orn-divider span { display: none; }
+.orn-divider::before { margin-right: 0; }
 
 /* Pinch-to-zoom overlay */
 .pinch-zoom-container {

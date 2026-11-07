@@ -42,7 +42,7 @@ function Field({ label, error, hint, children }: { label: string; error?: string
 
 export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
   const { items, totalPrice, clearCart } = useCart();
-  const { user, isGuest, ensureSession } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { num, config } = useStoreConfig();
 
   const [step, setStep] = useState(0);
@@ -68,7 +68,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
   useEffect(() => {
     try { localStorage.setItem(FORM_KEY, JSON.stringify(form)); } catch { /* ignore */ }
   }, [form]);
-  useEffect(() => { if (user?.email && !form.email && !isGuest) setForm((f) => ({ ...f, email: user.email ?? '' })); }, [user, isGuest]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (user?.email && !form.email) setForm((f) => ({ ...f, email: user.email ?? '' })); }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const shipFee = num('shipping_fee');
   const freeOver = num('free_shipping_threshold');
@@ -147,8 +147,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
     if (!code) return;
     setCouponBusy(true); setCouponMsg(null);
     try {
-      const s = await ensureSession();
-      if (!s.userId) throw new Error(s.error ?? 'Please sign in to use a coupon.');
+      if (!user) throw new Error('Please sign in to use a coupon.');
       const { data, error: e } = await supabase.rpc('preview_coupon', { p_code: code, p_subtotal: totalPrice });
       if (e) throw e;
       const r = data as { ok: boolean; code?: string; description?: string; discount?: number; reason?: string; min_order?: number };
@@ -181,8 +180,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
     if (items.length === 0) { setError('Your bag is empty.'); return; }
     setPaying(true);
     try {
-      const s = await ensureSession();
-      if (!s.userId) throw new Error(s.error ?? 'Could not start a secure session.');
+      if (!user) throw new Error('Please sign in to place your order.');
       const payload = {
         items: items.map((i) => ({ product_id: i.product.id, quantity: i.quantity })).sort((a, b) => a.product_id.localeCompare(b.product_id)),
         customer: customer(), coupon: coupon?.code ?? '', gift, giftMsg: gift ? giftMsg.trim() : '',
@@ -279,7 +277,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
           <div className="frame-gold mx-auto mt-6 rounded-md bg-cream-50 p-5">
             <p className="text-sm text-ink/70">Your order number</p>
             <p className="font-mono text-2xl tracking-wider text-onyx-300">{done.orderNumber ?? done.orderId.slice(0, 8)}</p>
-            <p className="mt-3 text-sm text-ink/75">We will send updates to <strong>{done.email}</strong>. Keep your order number and the mobile number you used: together they let you track this order any time, even without an account.</p>
+            <p className="mt-3 text-sm text-ink/75">We will send updates to <strong>{done.email}</strong>. You can follow it any time from My orders.</p>
           </div>
           {card && (
             <div className="mt-8">
@@ -288,16 +286,33 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
               <ScratchCard card={card} />
             </div>
           )}
-          {isGuest && (
-            <div className="mt-8 rounded-md bg-cream-200/70 p-4 text-sm text-ink/85">
-              <p>Create a password to keep your orders, returns and rewards in one place.</p>
-              <button onClick={onSignIn} className="mt-3 min-h-11 rounded bg-onyx-300 px-6 font-display text-xs tracking-[0.12em] text-gold-200">CREATE MY ACCOUNT</button>
-            </div>
-          )}
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <a href={`#/track?order=${encodeURIComponent(done.orderNumber ?? '')}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded bg-maroon-500 font-display text-xs tracking-[0.12em] text-gold-100"><Truck className="h-4 w-4" />TRACK THIS ORDER</a>
+            <a href="#/orders" className="inline-flex min-h-12 items-center justify-center gap-2 bg-onyx-300 text-[11px] font-medium uppercase tracking-[0.2em] text-white"><Truck className="h-4 w-4" />Track this order</a>
             <a href={shopHref()} className="inline-flex min-h-12 items-center justify-center rounded border-2 border-onyx-300 font-display text-xs tracking-[0.12em] text-onyx-300">CONTINUE SHOPPING</a>
           </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (authLoading) return <div className="grid min-h-screen place-items-center bg-cream-100 text-ink/60"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+
+  // Browsing, wishlist and bag are open to everyone; paying needs an account.
+  if (!user && !done) {
+    return (
+      <div className="min-h-screen bg-cream-100 pb-10">{topBar}
+        <main className="mx-auto max-w-lg px-4 py-10">
+          <h1 className="text-center font-display text-3xl text-ink">Sign in to check out</h1>
+          <p className="mx-auto mt-3 max-w-sm text-center text-[15px] leading-7 text-ink/70">Your bag is saved. Sign in or create an account so we can keep your orders, tracking, returns and rewards in one place.</p>
+          {items.length > 0 && (
+            <div className="frame-gold mt-6 bg-white p-4">
+              <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.18em] text-gold-600">Your bag · {items.reduce((n, i) => n + i.quantity, 0)} item(s)</p>
+              <ul className="divide-y divide-cream-400">{items.map((i) => <li key={i.product.id} className="flex justify-between gap-3 py-2 text-sm"><span className="line-clamp-1">{i.product.title} × {i.quantity}</span><span>{formatINR(i.product.selling_price * i.quantity)}</span></li>)}</ul>
+              <p className="mt-2 flex justify-between border-t border-cream-400 pt-2 font-medium"><span>Subtotal</span><span>{formatINR(totalPrice)}</span></p>
+            </div>
+          )}
+          <button onClick={onSignIn} className="mt-6 min-h-12 w-full bg-onyx-300 text-[12px] font-medium uppercase tracking-[0.2em] text-white hover:bg-onyx-200">Sign in or create account</button>
+          <a href={shopHref()} className="mt-4 block text-center text-sm text-ink/70 underline underline-offset-4">Continue shopping</a>
         </main>
       </div>
     );
@@ -348,7 +363,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
           {step === 0 && (
             <section aria-labelledby="s0" className="space-y-5">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"><h1 id="s0" className="font-display text-xl tracking-wide text-onyx-300">Where should we deliver?</h1>
-                {!user || isGuest ? <button onClick={onSignIn} className="min-h-10 text-sm text-onyx-300 underline underline-offset-4">Have an account? Sign in</button> : null}</div>
+                <span className="text-sm text-ink/60">Signed in as {user?.email}</span></div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2"><Field label="E-mail" error={errors.email} hint="Order confirmation and tracking updates are sent here.">
                   <input type="email" autoComplete="email" inputMode="email" value={form.email} onChange={(e) => set('email', e.target.value)} className={ec('email')} placeholder="you@example.com" /></Field></div>
@@ -379,7 +394,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
               <h1 id="s1" className="font-display text-xl tracking-wide text-onyx-300">Gift &amp; offers</h1>
               <div className="frame-gold rounded-md bg-cream-50 p-4">
                 <label className="flex cursor-pointer items-start gap-3">
-                  <input type="checkbox" checked={gift} onChange={(e) => setGift(e.target.checked)} className="mt-1 h-5 w-5 accent-[#0F4C4A]" />
+                  <input type="checkbox" checked={gift} onChange={(e) => setGift(e.target.checked)} className="mt-1 h-5 w-5 accent-[#16130F]" />
                   <span><span className="flex items-center gap-2 font-medium text-ink"><Gift className="h-4 w-4 text-gold-500" aria-hidden />Make it a gift {wrapFee > 0 ? `(+ ${formatINR(wrapFee)})` : '(free)'}</span><span className="text-sm text-ink/65">Gift wrap and a printed message card. The price is not shown on the parcel.</span></span>
                 </label>
                 {gift && <div className="mt-3"><Field label="Message for the card (optional)" hint={`${giftMsg.length}/200`}>
@@ -416,7 +431,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
               </div>
 
               <label id="consent-box" className="flex cursor-pointer items-start gap-3 rounded-md border border-gold-500/40 bg-cream-50 p-4">
-                <input type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); setError(null); }} className="mt-1 h-5 w-5 flex-shrink-0 accent-[#0F4C4A]" />
+                <input type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); setError(null); }} className="mt-1 h-5 w-5 flex-shrink-0 accent-[#16130F]" />
                 <span className="text-sm leading-6 text-ink/90">
                   I have read and agree to the{' '}
                   <a href={POLICY_LINKS.terms.href} target="_blank" rel="noopener noreferrer" className="text-onyx-300 underline underline-offset-4">Terms &amp; Conditions</a>,{' '}
@@ -433,7 +448,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
             {step > 0 ? <button onClick={() => setStep((s) => s - 1)} className="min-h-12 rounded border-2 border-onyx-300 px-8 font-display text-xs tracking-[0.12em] text-onyx-300">BACK</button> : <span />}
             {step < 2
               ? <button onClick={next} className="min-h-12 rounded bg-onyx-300 px-10 font-display text-sm tracking-[0.12em] text-gold-200 hover:bg-onyx-200">CONTINUE</button>
-              : <button onClick={() => void pay()} disabled={paying} className="inline-flex min-h-12 items-center gap-2 rounded bg-maroon-500 px-10 font-display text-sm tracking-[0.12em] text-gold-100 hover:bg-maroon-600 disabled:opacity-60">{paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}PAY {formatINR(total)}</button>}
+              : <button onClick={() => void pay()} disabled={paying} className="inline-flex min-h-12 items-center gap-2 rounded bg-onyx-300 px-10 font-display text-sm tracking-[0.12em] text-gold-100 hover:bg-onyx-200 disabled:opacity-60">{paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}PAY {formatINR(total)}</button>}
           </div>
         </div>
 
@@ -445,7 +460,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
           {step > 0 && <button onClick={() => setStep((s) => s - 1)} className="min-h-12 rounded border-2 border-onyx-300 px-5 font-display text-xs tracking-[0.1em] text-onyx-300" aria-label="Back">BACK</button>}
           {step < 2
             ? <button onClick={next} className="min-h-12 flex-1 rounded bg-onyx-300 font-display text-sm tracking-[0.12em] text-gold-200">CONTINUE</button>
-            : <button onClick={() => void pay()} disabled={paying} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded bg-maroon-500 font-display text-sm tracking-[0.1em] text-gold-100 disabled:opacity-60">{paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}PAY {formatINR(total)}</button>}
+            : <button onClick={() => void pay()} disabled={paying} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded bg-onyx-300 font-display text-sm tracking-[0.1em] text-gold-100 disabled:opacity-60">{paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}PAY {formatINR(total)}</button>}
         </div>
       </div>
     </div>

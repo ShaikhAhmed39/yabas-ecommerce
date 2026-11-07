@@ -154,7 +154,7 @@ export function ReportsPanel() {
         <fieldset className="mt-5"><legend className="mb-2 text-sm font-medium">Include</legend>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{SECTIONS.map((s) => (
             <label key={s.id} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-cream-400 px-3 text-sm">
-              <input type="checkbox" className="h-5 w-5 accent-[#0F4C4A]" checked={picked.has(s.id)} onChange={(e) => setPicked((p) => { const n = new Set(p); if (e.target.checked) n.add(s.id); else n.delete(s.id); return n; })} />{s.title}</label>))}</div>
+              <input type="checkbox" className="h-5 w-5 accent-[#16130F]" checked={picked.has(s.id)} onChange={(e) => setPicked((p) => { const n = new Set(p); if (e.target.checked) n.add(s.id); else n.delete(s.id); return n; })} />{s.title}</label>))}</div>
         </fieldset>
         {err && <div className="mt-4"><Notice kind="error">{err}</Notice></div>}
         <div className="mt-5 flex flex-wrap gap-3">

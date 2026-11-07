@@ -29,13 +29,18 @@ type SelectedReturn = { orderId: string; orderItemId: string; productTitle: stri
 
 function Shell() {
   const route = useRoute();
-  const { user, isGuest, isAdmin, loading } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
+  const isGuest = false;
   const { setCartOpen } = useCart();
   const [authOpen, setAuthOpen] = useState(false);
   const [authTitle, setAuthTitle] = useState('Welcome Back');
+  const [wantsCheckout, setWantsCheckout] = useState(false);
   const [selectedReturn, setSelectedReturn] = useState<SelectedReturn | null>(null);
 
   const signIn = (title = 'Welcome Back') => { setAuthTitle(title); setAuthOpen(true); };
+
+  // finish the checkout the customer started before signing in
+  useEffect(() => { if (wantsCheckout && user) { setWantsCheckout(false); setAuthOpen(false); go('/checkout'); } }, [wantsCheckout, user]);
 
   useEffect(() => { window.scrollTo({ top: 0 }); }, [route.name, route.name === 'product' ? route.id : '']); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -118,7 +123,7 @@ function Shell() {
       <Footer />
       <BottomNav route={route} />
       {route.name !== 'product' && <WhatsAppButton />}
-      <CartDrawer onCheckout={() => { setCartOpen(false); go('/checkout'); }} />
+      <CartDrawer onCheckout={() => { setCartOpen(false); if (user) go('/checkout'); else { setWantsCheckout(true); signIn('Sign in to check out'); } }} />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} title={authTitle} />
     </div>
   );

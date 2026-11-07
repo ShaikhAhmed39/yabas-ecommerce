@@ -92,8 +92,8 @@ export function CartDrawer({ onCheckout }: CartDrawerProps) {
                 <span className="text-onyx-100">Subtotal</span>
                 <span className="font-display text-2xl text-onyx-300">{formatINR(totalPrice)}</span>
               </div>
-              <p className="text-sm text-onyx-100">Delivery charges and coupons are applied at checkout. No account needed.</p>
-              <button onClick={onCheckout} className="min-h-12 w-full rounded bg-maroon-500 font-display text-sm tracking-[0.12em] text-gold-100 hover:bg-maroon-600 transition-colors">
+              <p className="text-sm text-onyx-100">Delivery charges and coupons are applied at checkout. You will sign in before paying.</p>
+              <button onClick={onCheckout} className="min-h-12 w-full rounded bg-onyx-300 font-display text-sm tracking-[0.12em] text-gold-100 hover:bg-onyx-200 transition-colors">
                 CHECKOUT
               </button>
             </div>

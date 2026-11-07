@@ -45,8 +45,8 @@ export function Header({ route, onSignIn }: { route: Route; onSignIn: () => void
     ? products.filter((p) => p.title.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 5)
     : [];
 
-  const iconBtn = 'relative grid h-11 w-11 place-items-center rounded-full text-cream-100 transition-colors hover:bg-white/10';
-  const badge = 'absolute right-0.5 top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-gold-400 px-1 text-[10px] font-semibold text-ink';
+  const iconBtn = 'relative grid h-11 w-11 place-items-center rounded-full text-ink transition-colors hover:bg-black/5';
+  const badge = 'absolute right-0.5 top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-onyx-300 px-1 text-[10px] font-semibold text-white';
 
   const searchBox = (
     <form onSubmit={submitSearch} role="search" className="relative w-full">
@@ -57,7 +57,7 @@ export function Header({ route, onSignIn }: { route: Route; onSignIn: () => void
         type="search"
         aria-label="Search jewellery"
         placeholder="Search jhumka, haram, kada…"
-        className="h-11 w-full rounded-md border border-gold-400/50 bg-white pl-10 pr-3 text-[15px] text-ink placeholder:text-ink/45 focus:border-gold-400 focus:outline-none"
+        className="h-11 w-full rounded-sm border border-cream-400 bg-white pl-10 pr-3 text-[15px] text-ink placeholder:text-ink/45 focus:border-gold-400 focus:outline-none"
       />
       {suggestions.length > 0 && (
         <ul className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-md border border-gold-400/40 bg-cream-50 shadow-medium">
@@ -76,15 +76,15 @@ export function Header({ route, onSignIn }: { route: Route; onSignIn: () => void
 
   return (
     <header className="sticky top-0 z-40">
-      <div className="jaali-teal">
+      <div className="border-b border-cream-400 bg-cream-100">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-2 sm:px-6 lg:h-[76px] lg:gap-6 lg:px-8">
           <button onClick={() => setMenuOpen(true)} className={`${iconBtn} lg:hidden`} aria-label="Open menu"><Menu className="h-6 w-6" /></button>
 
           <a href="#/" className="flex flex-1 items-center justify-center gap-3 lg:flex-none lg:justify-start" aria-label="Yaba's Imitation & Jewellery, home">
-            <img src={LOGO_PATH} alt="" className="hidden h-11 w-11 rounded-full object-cover ring-1 ring-gold-400/70 sm:block" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <img src={LOGO_PATH} alt="" className="hidden h-11 w-11 rounded-full object-cover ring-1 ring-cream-400 sm:block" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
             <span className="text-center leading-none lg:text-left">
-              <span className="block font-display text-[26px] tracking-[0.12em] text-gold-200 lg:text-[28px]">YABA&apos;S</span>
-              <span className="mt-1 block text-[8.5px] tracking-[0.34em] text-cream-100 sm:text-[9.5px]">IMITATION &amp; JEWELLERY</span>
+              <span className="block font-display text-[28px] font-medium tracking-[0.14em] text-ink lg:text-[30px]">YABA&apos;S</span>
+              <span className="mt-1 block font-sans text-[8.5px] tracking-[0.34em] text-gold-600 sm:text-[9.5px]">IMITATION &amp; JEWELLERY</span>
             </span>
           </a>
 
@@ -92,7 +92,7 @@ export function Header({ route, onSignIn }: { route: Route; onSignIn: () => void
             {NAV.map((n) => (
               <a key={n.label} href={n.href}
                 aria-current={n.match && route.name === n.match ? 'page' : undefined}
-                className={`font-display text-[13px] tracking-[0.14em] transition-colors hover:text-gold-300 ${n.match && route.name === n.match ? 'text-gold-300' : 'text-cream-100'}`}>
+                className={`font-display text-[13px] tracking-[0.14em] transition-colors hover:text-gold-500 ${n.match && route.name === n.match ? 'border-b border-ink text-ink' : 'text-ink'}`}>
                 {n.label.toUpperCase()}
               </a>
             ))}
@@ -129,8 +129,7 @@ export function Header({ route, onSignIn }: { route: Route; onSignIn: () => void
         </div>
         {searchOpen && <div className="px-3 pb-3 xl:hidden">{searchBox}</div>}
       </div>
-      <div className="scallop-teal" aria-hidden="true" />
-
+      
       {/* Mobile menu */}
       {menuOpen && (
         <div className="fixed inset-0 z-[60] lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">

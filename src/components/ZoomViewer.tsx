@@ -130,7 +130,7 @@ export function ZoomViewer({ images, start, title, onClose }: Props) {
   const btn = 'grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white backdrop-blur transition-colors hover:bg-white/25 disabled:opacity-30';
 
   return (
-    <div className="fixed inset-0 z-[120] flex flex-col bg-[#05201F]" role="dialog" aria-modal="true" aria-label={`${title} photos`}>
+    <div className="fixed inset-0 z-[120] flex flex-col bg-[#0E0C09]" role="dialog" aria-modal="true" aria-label={`${title} photos`}>
       <div className="flex items-center justify-between px-3 py-2 text-cream-100">
         <p className="px-2 text-sm" aria-live="polite">{index + 1} / {images.length}<span className="ml-3 hidden text-cream-200/70 sm:inline">Scroll, pinch or double-tap to zoom</span></p>
         <button onClick={onClose} className={btn} aria-label="Close viewer"><X className="h-5 w-5" /></button>

@@ -100,7 +100,7 @@ npm run typecheck && npm run lint && npm run build
 
 **Apply the migration** `supabase/migrations/20261102090000_storefront_checkout_scratch_cards.sql` (it is additive; nothing is dropped). Then deploy `create-razorpay-order`, `verify-razorpay-payment`, `razorpay-webhook`, `manage-return-request`, `admin-shipments`, `courier-webhook`, `reconcile-orders` and the new `track-order`.
 
-**Turn on guest checkout (required):** Supabase dashboard -> Authentication -> Sign In / Providers -> enable **Anonymous sign-ins**. Customers can then pay without an account; the order belongs to a guest session, they can track it with order number + phone, and later "Create account" converts the same session so their orders stay with them. Without this switch checkout asks the customer to sign in instead.
+**Checkout needs an account:** customers can browse, wishlist and fill their bag without signing in; they sign in (or sign up) when they press Checkout, then land straight back on checkout. Anonymous sign-ins are NOT needed. If you want customers to start paying right after signup, turn off "Confirm email" in Supabase -> Authentication -> Sign In / Providers -> Email; otherwise they must click the confirmation mail first.
 Also in Authentication -> Settings, enable CAPTCHA/bot protection if you see abuse of guest sessions.
 
 **Storage:** the `product-images` bucket must allow your admin account to upload (already used for hero/product photos). Products now hold several photos (`gallery_urls`); no video is offered for products.

@@ -61,7 +61,7 @@ export function ShopPage({ category, q }: { category: string; q: string }) {
         <select value={band} onChange={(e) => setBand(e.target.value as typeof band)} className={`${sel} mt-1`}>{BANDS.map((b) => <option key={b.v} value={b.v}>{b.l}</option>)}</select>
       </label>
       <label className="flex min-h-11 items-center gap-3 self-end text-sm text-ink">
-        <input type="checkbox" checked={inStock} onChange={(e) => setInStock(e.target.checked)} className="h-5 w-5 accent-[#0F4C4A]" /> In stock only
+        <input type="checkbox" checked={inStock} onChange={(e) => setInStock(e.target.checked)} className="h-5 w-5 accent-[#16130F]" /> In stock only
       </label>
     </div>
   );
@@ -92,7 +92,7 @@ export function ShopPage({ category, q }: { category: string; q: string }) {
         <div className="mt-4 flex items-center justify-between gap-3 border-y border-gold-500/25 py-3">
           <p className="text-sm text-ink/70" aria-live="polite">{loading ? 'Loading…' : `${list.length} piece${list.length === 1 ? '' : 's'}`}</p>
           <button onClick={() => setFiltersOpen((v) => !v)} aria-expanded={filtersOpen} className="inline-flex min-h-10 items-center gap-2 rounded border border-onyx-300 px-4 text-sm text-onyx-300">
-            <SlidersHorizontal className="h-4 w-4" aria-hidden /> Sort &amp; filter{activeFilters > 0 && <span className="grid h-5 w-5 place-items-center rounded-full bg-maroon-500 text-[11px] text-white">{activeFilters}</span>}
+            <SlidersHorizontal className="h-4 w-4" aria-hidden /> Sort &amp; filter{activeFilters > 0 && <span className="grid h-5 w-5 place-items-center rounded-full bg-onyx-300 text-[11px] text-white">{activeFilters}</span>}
           </button>
         </div>
         {filtersOpen && <div className="border-b border-gold-500/25 bg-cream-50 p-4">{filterPanel}</div>}

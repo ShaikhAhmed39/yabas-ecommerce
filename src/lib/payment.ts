@@ -175,7 +175,7 @@ export async function startRazorpayPayment(args: {
     order_id: created.razorpayOrderId,
     prefill: { email: args.prefillEmail, name: args.customer.customer_name, contact: args.customer.primary_phone },
     notes: { yaba_order_id: orderId },
-    theme: { color: '#0F4C4A' },
+    theme: { color: '#16130F' },
     timeout: 900,
     retry: { enabled: true, max_count: 3 },
     modal: { confirm_close: true, escape: false, ondismiss: cb.onDismiss },
