@@ -4,46 +4,56 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Light surfaces: rosy ivory (jeweller's silk lining)
+        // Ivory (page and card surfaces)
         cream: {
-          50: '#FFFBF6',
-          100: '#FAF0E8',
-          200: '#F3E4D9',
-          300: '#EAD6C7',
-          400: '#DCC3AF',
+          50: '#FFFBF2',
+          100: '#FDF3E3',
+          200: '#F7E8CC',
+          300: '#EBD5A8',
+          400: '#D9BE86',
         },
-        // Antique gold. Use 600+ for small text on ivory, 300 for text on velvet.
+        // Gold. Use 600+ for small text on ivory, 300 for text on teal.
         gold: {
-          50: '#FAF3E4',
-          100: '#F1E2BC',
-          200: '#E8CF94',
-          300: '#E2C27D',
-          400: '#C49A45',
-          500: '#96691F',
-          600: '#7E5619',
-          700: '#654414',
-          800: '#4C330F',
-          900: '#38250B',
+          50: '#FBF5E4',
+          100: '#F6E7BE',
+          200: '#F6DFA8',
+          300: '#EBC873',
+          400: '#E2B04F',
+          500: '#B8862D',
+          600: '#8A6420',
+          700: '#6E4F19',
+          800: '#503913',
+          900: '#38280E',
         },
-        // "onyx" is the wine-velvet / ink scale (name kept so every existing screen re-themes at once).
+        // "onyx" is the Peacock Teal scale (name kept so every existing screen re-themes at once).
         onyx: {
-          50: '#5A2234',
-          100: '#5B3A42',
-          200: '#4A1428',
-          300: '#3A1020',
-          400: '#2C0A18',
-          500: '#1E0610',
+          50: '#1C7A76',
+          100: '#2C6563',
+          200: '#14605C',
+          300: '#0F4C4A',
+          400: '#0A3A38',
+          500: '#072B29',
+        },
+        // Deep maroon accent (secondary jewel tone)
+        maroon: {
+          300: '#A63058',
+          400: '#8A2447',
+          500: '#7B1E3A',
+          600: '#5E1530',
+          700: '#4A0F24',
         },
         accent: {
           rose: '#B5655A',
           sage: '#6F8268',
-          wine: '#7A2E3A',
+          wine: '#7B1E3A',
         },
+        ink: '#2B1410',
       },
       fontFamily: {
-        serif: ['"Marcellus"', 'Georgia', 'serif'],
+        serif: ['"Cinzel"', 'Georgia', 'serif'],
         sans: ['"Jost"', 'system-ui', 'sans-serif'],
-        display: ['"Marcellus"', 'Georgia', 'serif'],
+        display: ['"Cinzel"', 'Georgia', 'serif'],
+        deva: ['"Noto Serif Devanagari"', 'serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.4s ease-out',
@@ -53,6 +63,8 @@ export default {
         'scale-in': 'scaleIn 0.25s ease-out',
         'shimmer': 'shimmer 2s linear infinite',
         'ticker': 'ticker 30s linear infinite',
+        'spin-slow': 'spin 90s linear infinite',
+        'float': 'float 6s ease-in-out infinite',
       },
       keyframes: {
         archRise: {
@@ -79,15 +91,19 @@ export default {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
         },
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-8px)' },
+        },
         ticker: {
           '0%': { transform: 'translateX(0)' },
           '100%': { transform: 'translateX(-50%)' },
         },
       },
       boxShadow: {
-        'soft': '0 2px 16px rgba(58, 16, 32, 0.07)',
-        'medium': '0 6px 32px rgba(58, 16, 32, 0.16)',
-        'gold': '0 4px 18px rgba(196, 154, 69, 0.28)',
+        'soft': '0 2px 16px rgba(15, 76, 74, 0.08)',
+        'medium': '0 6px 32px rgba(15, 76, 74, 0.18)',
+        'gold': '0 4px 18px rgba(226, 176, 79, 0.30)',
       },
     },
   },
