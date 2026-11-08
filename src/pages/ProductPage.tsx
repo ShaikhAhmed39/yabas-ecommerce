@@ -81,14 +81,14 @@ export function ProductPage({ id }: { id: string }) {
 
   return (
     <div className="pb-28 lg:pb-12">
-      <Section className="pt-4">
+      <Section className="pt-4 lg:max-w-[1440px]">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-[13px] text-ink/65">
           <a href="#/" className="hover:text-onyx-300">Home</a><ChevronRight className="h-3.5 w-3.5" aria-hidden />
           <a href={shopHref(product.category)} className="hover:text-onyx-300">{product.category || 'Shop'}</a><ChevronRight className="h-3.5 w-3.5" aria-hidden />
           <span className="line-clamp-1 text-ink">{product.title}</span>
         </nav>
 
-        <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14">
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.85fr)] lg:items-start lg:gap-12">
           <ProductGallery images={imgs} title={product.title} />
 
           <div className="min-w-0">

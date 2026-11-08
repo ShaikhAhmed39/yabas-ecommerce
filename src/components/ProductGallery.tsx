@@ -26,22 +26,22 @@ export function ProductGallery({ images, title }: { images: string[]; title: str
   const jump = (i: number) => { setActive(i); strip.current?.scrollTo({ left: i * (strip.current.clientWidth), behavior: 'smooth' }); };
 
   return (
-    <div className="min-w-0 lg:grid lg:grid-cols-[84px_minmax(0,1fr)] lg:gap-4">
+    <div className="flex min-w-0 flex-col lg:sticky lg:top-24 lg:grid lg:grid-cols-[92px_minmax(0,1fr)] lg:items-start lg:gap-4">
       {list.length > 1 && (
-        <div className="order-2 mt-3 flex gap-2 overflow-x-auto scrollbar-hide lg:order-1 lg:mt-0 lg:max-h-[600px] lg:flex-col" role="tablist" aria-label="Photos">
+        <div className="order-2 mt-3 flex gap-2 overflow-x-auto scrollbar-hide lg:order-1 lg:mt-0 lg:max-h-[720px] lg:flex-col" role="tablist" aria-label="Photos">
           {list.map((src, i) => (
             <button key={src + i} role="tab" aria-selected={i === active} onClick={() => jump(i)} aria-label={`Photo ${i + 1}`}
-              className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded border-2 lg:h-[84px] lg:w-[84px] ${i === active ? 'border-gold-500' : 'border-gold-500/25 opacity-75 hover:opacity-100'}`}>
-              <img src={src} alt="" className="h-full w-full object-cover" loading="lazy" />
+              className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded border-2 jewel-panel lg:h-[92px] lg:w-[92px] ${i === active ? 'border-gold-500' : 'border-gold-500/25 opacity-75 hover:opacity-100'}`}>
+              <img src={src} alt="" className="h-full w-full object-contain" loading="lazy" />
             </button>
           ))}
         </div>
       )}
-      <div className="relative order-1 min-w-0 lg:order-2">
+      <div className="relative order-1 min-w-0 lg:order-2 lg:max-w-[max(440px,calc(100vh-170px))]">
         <div className="frame-gold relative overflow-hidden rounded-md jewel-panel">
           <div ref={strip} onScroll={onScroll} className="flex snap-x snap-mandatory overflow-x-auto scrollbar-hide">
             {list.map((src, i) => (
-              <div key={src + i} className="relative aspect-[4/5] w-full flex-shrink-0 snap-center sm:aspect-square lg:aspect-[4/5]"
+              <div key={src + i} className="relative aspect-[4/5] w-full flex-shrink-0 snap-center sm:aspect-square"
                 onPointerMove={(e) => {
                   if (i !== active || e.pointerType !== 'mouse') return;
                   const r = e.currentTarget.getBoundingClientRect();
@@ -49,7 +49,7 @@ export function ProductGallery({ images, title }: { images: string[]; title: str
                 }}
                 onPointerLeave={() => setLens(null)}>
                 <button type="button" onClick={() => setViewer(i)} className="absolute inset-0 cursor-zoom-in" aria-label={`Open photo ${i + 1} to zoom`}>
-                  <img src={src} alt={`${title}, photo ${i + 1}`} loading={i === 0 ? 'eager' : 'lazy'} draggable={false} className="h-full w-full object-cover" />
+                  <img src={src} alt={`${title}, photo ${i + 1}`} loading={i === 0 ? 'eager' : 'lazy'} draggable={false} className="h-full w-full object-contain" />
                 </button>
                 {lens && i === active && (
                   <div aria-hidden className="pointer-events-none absolute hidden border border-white/80 bg-white/20 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)] lg:block"
@@ -62,8 +62,11 @@ export function ProductGallery({ images, title }: { images: string[]; title: str
           {list.length > 1 && <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/55 px-3 py-1 text-xs text-white">{active + 1} / {list.length}</span>}
         </div>
         {lens && (
-          <div aria-hidden className="frame-gold pointer-events-none absolute left-full top-0 z-40 ml-5 hidden aspect-[4/5] w-full overflow-hidden rounded-md bg-no-repeat shadow-medium lg:block"
-            style={{ backgroundImage: `url("${list[active]}")`, backgroundSize: `${ZOOM}%`, backgroundPosition: `${lensPos(lens.x) / (100 - LENS) * 100}% ${lensPos(lens.y) / (100 - LENS) * 100}%` }} />
+          <div aria-hidden className="frame-gold pointer-events-none absolute left-full top-0 z-40 ml-5 hidden aspect-square w-full overflow-hidden rounded-md jewel-panel shadow-medium lg:block">
+            <div className="absolute" style={{ width: `${ZOOM}%`, height: `${ZOOM}%`, left: `-${lensPos(lens.x) * ZOOM / 100}%`, top: `-${lensPos(lens.y) * ZOOM / 100}%` }}>
+              <img src={list[active]} alt="" className="h-full w-full object-contain" draggable={false} />
+            </div>
+          </div>
         )}
         {list.length > 1 && (
           <div className="mt-3 flex justify-center gap-2.5 lg:hidden" aria-hidden>
