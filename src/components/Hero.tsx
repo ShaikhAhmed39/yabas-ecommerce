@@ -53,8 +53,8 @@ export function Hero() {
 
   return (
     <section id="home" className="relative isolate overflow-hidden bg-gradient-to-b from-[#F1E9DA] to-[#E3D3B6] text-ink">
-      <div className="mx-auto grid max-w-7xl items-center gap-8 px-5 pb-0 pt-10 sm:px-8 lg:min-h-[680px] lg:grid-cols-[1fr_0.9fr] lg:gap-12 lg:px-12 lg:py-0">
-        <div className="order-1 mx-auto w-full max-w-xl text-center lg:mx-0 lg:text-left">
+      <div className="mx-auto grid max-w-7xl items-center gap-8 px-5 pb-0 pt-0 sm:px-8 lg:min-h-[680px] lg:grid-cols-[1fr_0.9fr] lg:gap-12 lg:px-12 lg:py-0">
+        <div className="order-2 mx-auto w-full max-w-xl pb-12 text-center lg:order-1 lg:mx-0 lg:pb-0 lg:text-left">
           <p className="text-[10.5px] tracking-[0.4em] text-gold-700">NEW SEASON · 1 GRAM GOLD</p>
           <h1 className="mt-4 font-display text-[3.4rem] font-normal italic leading-[0.92] sm:text-7xl xl:text-[5.5rem]">
             Quietly <br className="hidden lg:block" />radiant
@@ -69,9 +69,9 @@ export function Hero() {
           </div>
         </div>
 
-        <div className="order-2 mx-auto mt-2 w-full max-w-[300px] sm:max-w-[380px] lg:max-w-[440px] lg:self-end" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+        <div className="order-1 -mx-5 w-auto max-w-none sm:-mx-8 lg:order-2 lg:mx-auto lg:w-full lg:max-w-[440px] lg:self-end" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
           <div
-            className="relative rounded-t-full border border-b-0 border-[#A9844599] p-3 animate-arch-rise"
+            className="relative lg:animate-arch-rise lg:rounded-t-full lg:border lg:border-b-0 lg:border-[#A9844599] lg:p-3"
             onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
             onTouchEnd={(e) => {
               if (touchX.current === null || images.length < 2) return;
@@ -80,7 +80,7 @@ export function Hero() {
               if (Math.abs(dx) > 40) (dx < 0 ? next : prev)();
             }}
           >
-            <div className="relative aspect-[4/5] w-full overflow-hidden rounded-t-full border border-b-0 border-[#A9844599] bg-[#ECE2CF]">
+            <div className="relative aspect-[5/6] w-full overflow-hidden bg-[#ECE2CF] sm:aspect-[16/10] lg:aspect-[4/5] lg:rounded-t-full lg:border lg:border-b-0 lg:border-[#A9844599]">
               {video ? (
                 <video src={video} autoPlay muted loop playsInline preload="metadata" className={media} />
               ) : (
@@ -99,7 +99,7 @@ export function Hero() {
               )}
             </div>
             {!video && images.length > 1 && (
-              <div className="absolute inset-x-0 bottom-3 flex items-center justify-center gap-2 bg-gradient-to-t from-black/45 to-transparent pb-1 pt-8">
+              <div className="absolute inset-x-0 bottom-0 flex items-center lg:bottom-3 justify-center gap-2 bg-gradient-to-t from-black/45 to-transparent pb-1 pt-8">
                 <button type="button" onClick={prev} aria-label="Previous photo" className="grid h-10 w-10 place-items-center text-white"><ChevronLeft className="h-5 w-5" /></button>
                 <div className="flex items-center" role="group" aria-label="Choose hero image">
                   {images.map((_, i) => (
