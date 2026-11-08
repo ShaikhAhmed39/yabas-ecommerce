@@ -26,7 +26,7 @@ export function ProductGallery({ images, title }: { images: string[]; title: str
   const jump = (i: number) => { setActive(i); strip.current?.scrollTo({ left: i * (strip.current.clientWidth), behavior: 'smooth' }); };
 
   return (
-    <div className="flex min-w-0 flex-col lg:sticky lg:top-24 lg:grid lg:grid-cols-[92px_minmax(0,1fr)] lg:items-start lg:gap-4">
+    <div className={`flex min-w-0 flex-col lg:sticky lg:top-24 lg:grid lg:items-start lg:gap-4 ${list.length > 1 ? 'lg:grid-cols-[92px_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,1fr)]'}`}>
       {list.length > 1 && (
         <div className="order-2 mt-3 flex gap-2 overflow-x-auto scrollbar-hide lg:order-1 lg:mt-0 lg:max-h-[720px] lg:flex-col" role="tablist" aria-label="Photos">
           {list.map((src, i) => (
@@ -37,7 +37,7 @@ export function ProductGallery({ images, title }: { images: string[]; title: str
           ))}
         </div>
       )}
-      <div className="relative order-1 min-w-0 lg:order-2 lg:max-w-[max(440px,calc(100vh-170px))]">
+      <div className="relative order-1 w-full min-w-0 lg:order-2 lg:max-w-[max(440px,calc(100vh-215px))]">
         <div className="frame-gold relative overflow-hidden rounded-md jewel-panel">
           <div ref={strip} onScroll={onScroll} className="flex snap-x snap-mandatory overflow-x-auto scrollbar-hide">
             {list.map((src, i) => (
