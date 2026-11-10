@@ -1,333 +1,149 @@
-
 import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { CartProvider, useCart } from '@/context/CartContext';
+import { ProductsProvider } from '@/context/ProductsContext';
+import { WishlistProvider } from '@/context/WishlistContext';
+import { StoreConfigProvider } from '@/lib/storeConfig';
 import { GoldTicker } from '@/components/GoldTicker';
 import { Header } from '@/components/Header';
-import { Hero } from '@/components/Hero';
-import { ProductGrid } from '@/components/ProductGrid';
-import { About } from '@/components/About';
 import { Footer } from '@/components/Footer';
+import { BottomNav } from '@/components/BottomNav';
+import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { CartDrawer } from '@/components/CartDrawer';
 import { AuthModal } from '@/components/AuthModal';
-import { CheckoutModal } from '@/components/CheckoutModal';
-import { Lightbox } from '@/components/Lightbox';
+import { ReturnRequestForm } from '@/components/ReturnRequestForm';
+import { HomePage } from '@/pages/HomePage';
+import { ShopPage } from '@/pages/ShopPage';
+import { ProductPage } from '@/pages/ProductPage';
+import { CheckoutPage } from '@/pages/CheckoutPage';
+import { TrackOrderPage } from '@/pages/TrackOrderPage';
+import { WishlistPage } from '@/pages/WishlistPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { MyOrders } from '@/pages/MyOrders';
-import { ReturnRequestForm } from '@/components/ReturnRequestForm';
-import { supabase } from '@/lib/supabase';
-import { uploadReturnPhoto } from '@/utils/returnPhotoUpload';
 import { PolicyPage, isPolicyPath } from '@/pages/PolicyPage';
+import { callFunction } from '@/lib/api';
+import { go, useRoute } from '@/lib/router';
+import { uploadReturnPhoto } from '@/utils/returnPhotoUpload';
 
-type Page = 'storefront' | 'admin' | 'my-orders' | 'return-request';
+type SelectedReturn = { orderId: string; orderItemId: string; productTitle: string };
 
-type SelectedReturn = {
-  orderId: string;
-  orderItemId: string;
-  productTitle: string;
-};
-
-function Storefront({ onNavigate }: { onNavigate: (page: Page) => void }) {
-  const { user } = useAuth();
+function Shell() {
+  const route = useRoute();
+  const { user, isAdmin, loading } = useAuth();
+  const isGuest = false;
   const { setCartOpen } = useCart();
   const [authOpen, setAuthOpen] = useState(false);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [authTitle, setAuthTitle] = useState('Welcome Back');
+  const [wantsCheckout, setWantsCheckout] = useState(false);
+  const [selectedReturn, setSelectedReturn] = useState<SelectedReturn | null>(null);
 
-  useEffect(() => {
-    supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (data) window.__allProducts__ = data;
-      });
-  }, []);
+  const signIn = (title = 'Welcome Back') => { setAuthTitle(title); setAuthOpen(true); };
 
-  const handleCheckout = () => {
-    setCartOpen(false);
-    if (!user) setAuthOpen(true);
-    else setCheckoutOpen(true);
-  };
+  // finish the checkout the customer started before signing in
+  useEffect(() => { if (wantsCheckout && user) { setWantsCheckout(false); setAuthOpen(false); go('/checkout'); } }, [wantsCheckout, user]);
+
+  useEffect(() => { window.scrollTo({ top: 0 }); }, [route.name, route.name === 'product' ? route.id : '']); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (route.name === 'admin') {
+    if (loading) return <div className="grid min-h-screen place-items-center text-onyx-300">Loading…</div>;
+    if (isAdmin) return <AdminPage onNavigate={() => go('/')} />;
+    // not an admin: fall through to a friendly page instead of a blank screen
+    return (
+      <div className="grid min-h-screen place-items-center bg-cream-100 px-6 text-center">
+        <div><h1 className="font-display text-2xl text-onyx-300">Admin sign-in required</h1>
+          <p className="mt-2 text-ink/70">{user && !isGuest ? 'This account does not have admin access.' : 'Please sign in with the owner account.'}</p>
+          <div className="mt-6 flex justify-center gap-3">
+            {(!user || isGuest) && <button onClick={() => signIn('Admin sign in')} className="min-h-11 rounded bg-onyx-300 px-6 font-display text-xs tracking-[0.12em] text-gold-200">SIGN IN</button>}
+            <a href="#/" className="inline-flex min-h-11 items-center rounded border-2 border-onyx-300 px-6 font-display text-xs tracking-[0.12em] text-onyx-300">BACK TO STORE</a></div></div>
+        <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} title={authTitle} />
+      </div>
+    );
+  }
+
+  if (route.name === 'checkout') {
+    return (<><CheckoutPage onSignIn={() => signIn('Sign in to your account')} /><AuthModal open={authOpen} onClose={() => setAuthOpen(false)} title={authTitle} /></>);
+  }
+
+  const signedIn = Boolean(user);
+  let page: React.ReactNode;
+  switch (route.name) {
+    case 'shop': page = <ShopPage category={route.category} q={route.q} />; break;
+    case 'product': page = <ProductPage id={route.id} />; break;
+    case 'track': page = <TrackOrderPage initialOrder={route.order} />; break;
+    case 'wishlist': page = <WishlistPage />; break;
+    case 'orders':
+      page = loading ? null : signedIn ? (
+        <MyOrders onBack={() => go('/')} onRequestReturn={(order, item) => {
+          setSelectedReturn({ orderId: order.id, orderItemId: item.id ?? '', productTitle: item.product_title });
+          go('/return');
+        }} />
+      ) : (
+        <div className="mx-auto max-w-md px-6 py-20 text-center"><h1 className="font-display text-2xl text-onyx-300">Your orders</h1>
+          <p className="mt-2 text-ink/70">Sign in to see your orders, start a return and follow every parcel.</p>
+          <button onClick={() => signIn('Sign in to view your orders')} className="mt-6 min-h-12 rounded bg-onyx-300 px-8 font-display text-sm tracking-[0.12em] text-gold-200">SIGN IN</button>
+          <p className="mt-4 text-sm text-ink/70">Ordered as a guest? <a href="#/track" className="text-onyx-300 underline underline-offset-4">Track it with your order number</a>.</p></div>
+      );
+      break;
+    case 'return':
+      if (!user) page = <div className="px-6 py-20 text-center"><button onClick={() => signIn('Sign in to continue')} className="min-h-12 rounded bg-onyx-300 px-8 font-display text-sm text-gold-200">SIGN IN</button></div>;
+      else if (!selectedReturn) { go('/orders'); page = null; }
+      else page = (
+        <ReturnRequestForm
+          orderId={selectedReturn.orderId} orderItemId={selectedReturn.orderItemId} productTitle={selectedReturn.productTitle}
+          onCancel={() => go('/orders')}
+          onSubmit={async ({ reason, description, photos }) => {
+            const created = await callFunction<{ return_request?: { id?: string } }>('submit-return-request', {
+              order_id: selectedReturn.orderId, order_item_id: selectedReturn.orderItemId, reason, description,
+            });
+            const returnRequestId = created.return_request?.id;
+            if (!returnRequestId) throw new Error('The server did not confirm a saved return request. Please check My Orders before trying again.');
+            try {
+              const uploadedPaths: string[] = [];
+              for (const photo of photos) uploadedPaths.push(await uploadReturnPhoto({ file: photo, userId: user.id, returnRequestId }));
+              if (uploadedPaths.length > 0) {
+                const attached = await callFunction<{ success?: boolean; return_request_id?: string }>('attach-return-photos', { return_request_id: returnRequestId, photo_paths: uploadedPaths });
+                if (!attached.success || attached.return_request_id !== returnRequestId) throw new Error('The server did not confirm the photo attachment.');
+              }
+            } catch (photoError) {
+              console.error('Return photo processing failed:', photoError);
+              throw new Error(`Your return request was received (see it in My Orders), but the photos could not be attached: ${photoError instanceof Error ? photoError.message : 'unknown error'} Please contact us and we will add them for you. Do not submit another request.`);
+            }
+          }}
+        />
+      );
+      break;
+    default: page = <HomePage />;
+  }
 
   return (
-    <div className="min-h-screen bg-cream-100">
+    <div className="min-h-screen bg-cream-100 pb-16 lg:pb-0">
       <GoldTicker />
-      <Header
-        onNavigate={onNavigate}
-        currentPage="storefront"
-        onSignIn={() => setAuthOpen(true)}
-      />
-      <main>
-        <Hero />
-        <ProductGrid />
-        <About />
-      </main>
+      <Header route={route} onSignIn={() => signIn()} />
+      <main id="main">{page}</main>
       <Footer />
-      <CartDrawer onCheckout={handleCheckout} />
-      <AuthModal
-        open={authOpen}
-        onClose={() => setAuthOpen(false)}
-        title="Sign In to Checkout"
-      />
-      <CheckoutModal
-        open={checkoutOpen}
-        onClose={() => setCheckoutOpen(false)}
-        onRequireAuth={() => {
-          setCheckoutOpen(false);
-          setAuthOpen(true);
-        }}
-      />
-      <Lightbox />
+      <BottomNav route={route} />
+      {route.name !== 'product' && <WhatsAppButton />}
+      <CartDrawer onCheckout={() => { setCartOpen(false); if (user) go('/checkout'); else { setWantsCheckout(true); signIn('Sign in to check out'); } }} />
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} title={authTitle} />
     </div>
   );
 }
 
 function AppContent() {
-  const [page, setPage] = useState<Page>('storefront');
-  const [selectedReturn, setSelectedReturn] = useState<SelectedReturn | null>(null);
-  const [authOpen, setAuthOpen] = useState(false);
-  const { user, isAdmin, loading } = useAuth();
-
-  useEffect(() => {
-    if (loading) return;
-
-    const checkHash = () => {
-      const hash = window.location.hash;
-
-      if (hash === '#admin') {
-        setPage(isAdmin ? 'admin' : 'storefront');
-      } else if (hash === '#my-orders' || hash === '#return-request') {
-        if (user) {
-          setPage(hash === '#return-request' && selectedReturn
-            ? 'return-request'
-            : 'my-orders');
-        } else {
-          setPage('storefront');
-          setAuthOpen(true);
-        }
-      } else {
-        setPage('storefront');
-      }
-    };
-
-    checkHash();
-    window.addEventListener('hashchange', checkHash);
-    return () => window.removeEventListener('hashchange', checkHash);
-  }, [user, isAdmin, loading, selectedReturn]);
-
-  const navigate = (newPage: Page) => {
-    if (newPage === 'admin' && !isAdmin) {
-      newPage = 'storefront';
-    }
-
-    if (
-      (newPage === 'my-orders' || newPage === 'return-request') &&
-      !user
-    ) {
-      setAuthOpen(true);
-      return;
-    }
-
-    if (newPage === 'return-request' && !selectedReturn) {
-      newPage = 'my-orders';
-    }
-
-    setPage(newPage);
-
-    window.location.hash =
-      newPage === 'admin'
-        ? 'admin'
-        : newPage === 'my-orders'
-          ? 'my-orders'
-          : newPage === 'return-request'
-            ? 'return-request'
-            : '';
-
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const openReturnForm = (
-    order: { id: string },
-    item: { id: string; product_title: string },
-  ) => {
-    setSelectedReturn({
-      orderId: order.id,
-      orderItemId: item.id,
-      productTitle: item.product_title,
-    });
-    navigate('return-request');
-  };
-
-  const renderPage: Page =
-    page === 'admin' && isAdmin
-      ? 'admin'
-      : page === 'return-request' && user && selectedReturn
-        ? 'return-request'
-        : page === 'my-orders' && user
-          ? 'my-orders'
-          : 'storefront';
-
-  if (isPolicyPath(window.location.pathname)) {
-    return <PolicyPage />;
-  }
-
-  return (
-    <CartProvider>
-      {renderPage === 'admin' ? (
-        <AdminPage onNavigate={navigate} />
-      ) : renderPage === 'my-orders' ? (
-        <>
-          <Header
-            onNavigate={navigate}
-            currentPage="my-orders"
-            onSignIn={() => setAuthOpen(true)}
-          />
-          <MyOrders
-            onBack={() => navigate('storefront')}
-            onRequestReturn={openReturnForm}
-          />
-          <AuthModal
-            open={authOpen}
-            onClose={() => setAuthOpen(false)}
-            title="Sign In to View Your Orders"
-          />
-        </>
-      ) : renderPage === 'return-request' && selectedReturn ? (
-        <>
-          <Header
-            onNavigate={navigate}
-            currentPage="my-orders"
-            onSignIn={() => setAuthOpen(true)}
-          />
-          <ReturnRequestForm
-            orderId={selectedReturn.orderId}
-            orderItemId={selectedReturn.orderItemId}
-            productTitle={selectedReturn.productTitle}
-            onCancel={() => navigate('my-orders')}
-            onSubmit={async ({ reason, description, photos }) => {
-              if (!user) {
-                throw new Error('Please sign in before submitting a return request.');
-              }
-
-              // Create the return request first so we have its server-generated ID.
-              const { data, error } = await supabase.functions.invoke(
-                'submit-return-request',
-                {
-                  body: {
-                    order_id: selectedReturn.orderId,
-                    order_item_id: selectedReturn.orderItemId,
-                    reason,
-                    description,
-                  },
-                },
-              );
-
-              if (error) {
-                let message = error.message || 'Unable to submit your return request.';
-                const context = error.context;
-
-                if (context instanceof Response) {
-                  try {
-                    const responseBody = await context.clone().json();
-                    if (typeof responseBody?.error === 'string') {
-                      message = responseBody.error;
-                    }
-                  } catch {
-                    // Keep the SDK error message if the response isn't JSON.
-                  }
-                }
-
-                throw new Error(message);
-              }
-
-              const returnRequestId = data?.return_request?.id;
-
-              if (!returnRequestId) {
-                throw new Error(
-                  'The server did not confirm a saved return request. Please check My Orders before trying again.',
-                );
-              }
-
-              // Upload photos to the private bucket, then attach their paths.
-              const uploadedPaths: string[] = [];
-
-              try {
-                for (const photo of photos) {
-                  const path = await uploadReturnPhoto({
-                    file: photo,
-                    userId: user.id,
-                    returnRequestId,
-                  });
-
-                  uploadedPaths.push(path);
-                }
-
-                if (uploadedPaths.length > 0) {
-                  const { data: attachData, error: attachError } =
-                    await supabase.functions.invoke('attach-return-photos', {
-                      body: {
-                        return_request_id: returnRequestId,
-                        photo_paths: uploadedPaths,
-                      },
-                    });
-
-                  if (attachError) {
-                    let message =
-                      attachError.message || 'Unable to attach return photos.';
-                    const context = attachError.context;
-
-                    if (context instanceof Response) {
-                      try {
-                        const responseBody = await context.clone().json();
-                        if (typeof responseBody?.error === 'string') {
-                          message = responseBody.error;
-                        }
-                      } catch {
-                        // Keep the SDK error message if the response isn't JSON.
-                      }
-                    }
-
-                    throw new Error(message);
-                  }
-
-                  if (
-                    !attachData?.success ||
-                    attachData.return_request_id !== returnRequestId
-                  ) {
-                    throw new Error('The server did not confirm the photo attachment.');
-                  }
-                }
-              } catch (photoError) {
-                console.error('Return photo processing failed:', photoError);
-                throw new Error(
-                  photoError instanceof Error
-                    ? `Your return request was created, but photo processing failed: ${photoError.message} Please contact support before submitting another request.`
-                    : 'Your return request was created, but photo processing failed. Please contact support before submitting another request.',
-                );
-              }
-
-              // The form shows success only after all requested photos are attached.
-            }}
-          />
-          <AuthModal
-            open={authOpen}
-            onClose={() => setAuthOpen(false)}
-            title="Sign In to View Your Orders"
-          />
-        </>
-      ) : (
-        <Storefront onNavigate={navigate} />
-      )}
-    </CartProvider>
-  );
+  if (isPolicyPath(window.location.pathname)) return <PolicyPage />;
+  return <CartProvider><Shell /></CartProvider>;
 }
 
-function App() {
+export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <StoreConfigProvider>
+        <ProductsProvider>
+          <WishlistProvider>
+            <AppContent />
+          </WishlistProvider>
+        </ProductsProvider>
+      </StoreConfigProvider>
     </AuthProvider>
   );
 }
-
-export default App;

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&family=Noto+Serif+Devanagari:wght@500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,15 +9,40 @@
     scroll-behavior: smooth;
   }
   body {
-    background-color: #FAF9F6;
-    color: #1C1B1A;
-    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #FAF8F4;
+    color: #16130F;
+    font-family: 'Jost', system-ui, sans-serif;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 }
 
+@layer base {
+  :focus-visible {
+    outline: 2px solid #A98445;
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
 @layer utilities {
+  /* The signature shape: a niche arch with a hairline gold echo */
+  .arch {
+    border-top-left-radius: 9999px;
+    border-top-right-radius: 9999px;
+  }
+  .arch-outline {
+    outline: 1px solid rgba(169, 132, 69, 0.7);
+    outline-offset: 7px;
+  }
   .text-balance {
     text-wrap: balance;
   }
@@ -29,19 +54,43 @@
     display: none;
   }
   .gold-gradient {
-    background: linear-gradient(135deg, #E5D4A0 0%, #C9A054 50%, #B8893E 100%);
+    background: linear-gradient(135deg, #E8D9B8 0%, #C9A96A 55%, #A98445 100%);
   }
   .gold-text {
-    background: linear-gradient(135deg, #D9BF78 0%, #C9A054 100%);
+    background: linear-gradient(135deg, #E8D9B8 0%, #C9A96A 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   .shimmer-bg {
-    background: linear-gradient(90deg, #F5F3EE 25%, #EFEBE3 50%, #F5F3EE 75%);
+    background: linear-gradient(90deg, #F3EDE0 25%, #ECE2CF 50%, #F3EDE0 75%);
     background-size: 200% 100%;
   }
 }
+
+/* ===== Editorial Luxe: ivory, ink, hairline gold ===== */
+@layer utilities {
+  .jaali-teal, .jaali-maroon { background-color: #16130F; background-image: none; }
+  .jaali-maroon { background-color: #1F1A14; }
+  .scallop-teal, .scallop-ivory { height: 1px; background: #E6DFD2; }
+  .frame-gold { border: 1px solid #E6DFD2; outline: none; }
+  .frame-gold-light { border: 1px solid #C9A96A; outline: none; }
+  .jewel-panel, .jewel-panel-maroon { background: linear-gradient(170deg, #ECE2CF, #D9C49A); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
+/* Square, quiet edges like the editorial design (the admin keeps its own softer cards) */
+.rounded, .rounded-md { border-radius: 2px; }
+/* Serif for headings; labels on buttons and links use the clean sans */
+button.font-display, a.font-display, label.font-display, summary.font-display, span.font-display.label {
+  font-family: 'Jost', system-ui, sans-serif; font-weight: 500;
+}
+.font-display { font-weight: 500; }
+/* The Devanagari accents belong to the old theme */
+.font-deva { display: none; }
+.orn-divider { display: flex; align-items: center; gap: 14px; color: #A98445; font-size: 9px; letter-spacing: .3em; }
+.orn-divider::before, .orn-divider::after { content: ""; flex: 1; height: 1px; background: #E6DFD2; }
+.orn-divider span { display: none; }
+.orn-divider::before { margin-right: 0; }
 
 /* Pinch-to-zoom overlay */
 .pinch-zoom-container {

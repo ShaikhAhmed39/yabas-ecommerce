@@ -1,49 +1,31 @@
-import { Gem, Heart, Shield, Truck } from 'lucide-react';
+import { Section } from '@/components/ornaments';
 
 export function About() {
-  const features = [
-    { icon: Gem, title: 'Premium Craftsmanship', desc: 'Every piece is meticulously handcrafted by skilled Mumbai artisans.' },
-    { icon: Shield, title: 'Quality Guaranteed', desc: 'Gold-plated finishes that last. 7-day exchange on all items.' },
-    { icon: Truck, title: 'Pan-India Shipping', desc: 'Free shipping on orders above ₹999. Dispatched within 24 hours.' },
-    { icon: Heart, title: 'Care & Service', desc: 'Personalized support and guidance for every purchase you make.' },
+  const points = [
+    { title: 'Gold-plated finish', desc: 'Each piece carries a gold-plated finish. The Jewellery Care guide in the footer shows how to keep it bright.' },
+    { title: '7-day returns', desc: 'Not right? Raise a return from My orders within 7 days of delivery. We arrange the pickup and refund you after inspection.' },
+    { title: 'Delivered across India', desc: 'Pay online and we ship to your pincode, with tracking you can follow any time.' },
+    { title: 'Real people to talk to', desc: 'Call or WhatsApp the shop for help choosing a set. The numbers are in the footer.' },
   ];
-
   return (
-    <section id="about" className="py-12 sm:py-20 lg:py-24 bg-cream-200/50">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-10 sm:mb-14">
-          <p className="text-xs font-semibold text-gold-500 tracking-widest uppercase mb-3">
-            Our Story
-          </p>
-          <h2 className="font-display text-2xl sm:text-4xl lg:text-5xl font-bold text-onyx-300">
-            Mumbai's Trusted Jewellery House
-          </h2>
-          <p className="mt-4 text-sm sm:text-base text-onyx-300 max-w-2xl mx-auto leading-relaxed">
-            Born in the bustling lanes of Mumbai's jewellery markets, Yaba's Imitation & Jewellery
-            brings you the timeless beauty of gold-plated craftsmanship at honest prices. We believe
-            every woman deserves to shine, regardless of her budget.
+    <section id="about" className="jaali-teal mt-8 py-14 text-cream-100 sm:py-20">
+      <Section className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
+        <div>
+          <p className="font-deva text-gold-200">हमारी कहानी</p>
+          <h2 className="mt-1 font-display text-2xl leading-tight tracking-wide text-gold-100 sm:text-4xl">Born in Mumbai&apos;s jewellery lanes, made for every occasion</h2>
+          <p className="mt-5 max-w-lg text-base leading-8 text-cream-200/90">
+            Yaba&apos;s Imitation &amp; Jewellery brings the look of gold-plated craftsmanship at honest prices. We believe every woman deserves to shine, whatever her budget.
           </p>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {features.map((f, i) => (
-            <div
-              key={i}
-              className="bg-cream-50 rounded-2xl p-5 sm:p-6 text-center shadow-soft hover:shadow-medium transition-shadow duration-300"
-            >
-              <div className="w-12 h-12 rounded-full bg-gold-50 flex items-center justify-center mx-auto mb-4">
-                <f.icon className="h-6 w-6 text-gold-500" />
-              </div>
-              <h3 className="font-serif text-base font-semibold text-onyx-300 mb-2">
-                {f.title}
-              </h3>
-              <p className="text-xs sm:text-sm text-onyx-300 leading-relaxed">
-                {f.desc}
-              </p>
+        <dl className="grid gap-x-10 gap-y-7 sm:grid-cols-2">
+          {points.map((p) => (
+            <div key={p.title} className="border-t border-gold-400/50 pt-4">
+              <dt className="font-display text-lg tracking-wide text-gold-200">{p.title}</dt>
+              <dd className="mt-2 text-[15px] leading-7 text-cream-200/85">{p.desc}</dd>
             </div>
           ))}
-        </div>
-      </div>
+        </dl>
+      </Section>
     </section>
   );
 }

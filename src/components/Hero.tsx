@@ -1,246 +1,119 @@
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { shopHref } from '@/lib/router';
 
-const HERO_IMAGE =
-  "https://images.pexels.com/photos/8891961/pexels-photo-8891961.jpeg?auto=compress&cs=tinysrgb&w=2000";
-
-const FALLBACK_IMAGE =
-  "https://placehold.co/1200x1500/211B17/E7C98F?text=Yaba%27s+Jewelry";
+const HERO_IMAGE = 'https://images.pexels.com/photos/8891961/pexels-photo-8891961.jpeg?auto=compress&cs=tinysrgb&w=2000';
+const FALLBACK_IMAGE = 'https://placehold.co/1200x1500/ECE2CF/A98445?text=Yaba%27s';
 
 type PublishedHeroSettings = {
-  published_mode: "slideshow" | "video";
+  published_mode: 'slideshow' | 'video';
   published_image_urls: string[] | null;
   published_video_url: string | null;
   is_published: boolean;
 };
 
+/** Editorial hero: centred italic headline over a champagne wash, with the photos inside a hairline-gold arch.
+ *  Photos or video come from Admin > Home banner (Cloudinary), exactly as before. */
 export function Hero() {
-  const [heroImages, setHeroImages] = useState<string[]>([HERO_IMAGE]);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [heroVideo, setHeroVideo] = useState("");
-  const [isVideo, setIsVideo] = useState(false);
+  const [images, setImages] = useState<string[]>([HERO_IMAGE]);
+  const [active, setActive] = useState(0);
+  const [video, setVideo] = useState('');
+  const [paused, setPaused] = useState(false);
+  const touchX = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-
-    const loadPublishedHero = async () => {
+    void (async () => {
       const { data, error } = await supabase
-        .from("hero_media_settings")
-        .select(
-          "published_mode,published_image_urls,published_video_url,is_published",
-        )
-        .eq("is_published", true)
-        .order("published_at", { ascending: false })
+        .from('hero_media_settings')
+        .select('published_mode,published_image_urls,published_video_url,is_published')
+        .eq('is_published', true)
+        .order('published_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-
-      if (cancelled || error || !data || !data.is_published) return;
-
-      const settings = data as PublishedHeroSettings;
-
-      if (settings.published_mode === "video" && settings.published_video_url) {
-        setHeroVideo(settings.published_video_url);
-        setIsVideo(true);
-        setHeroImages([HERO_IMAGE]);
-        setActiveIndex(0);
-        return;
-      }
-
-      const publishedImages = (settings.published_image_urls || []).filter(
-        (url): url is string =>
-          typeof url === "string" && url.startsWith("https://"),
-      );
-
-      if (publishedImages.length > 0) {
-        setHeroImages(publishedImages);
-        setActiveIndex(0);
-        setHeroVideo("");
-        setIsVideo(false);
-      }
-    };
-
-    void loadPublishedHero();
-
-    return () => {
-      cancelled = true;
-    };
+      if (cancelled || error || !data) return;
+      const s = data as PublishedHeroSettings;
+      if (s.published_mode === 'video' && s.published_video_url) { setVideo(s.published_video_url); return; }
+      const urls = (s.published_image_urls ?? []).filter((u): u is string => typeof u === 'string' && u.startsWith('https://'));
+      if (urls.length) { setImages(urls); setActive(0); setVideo(''); }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  // Advance to the next photo every 20 seconds.
   useEffect(() => {
-    if (isVideo || heroImages.length < 2) return;
+    if (video || images.length < 2 || paused) return;
+    const t = window.setInterval(() => setActive((c) => (c + 1) % images.length), 6000);
+    return () => window.clearInterval(t);
+  }, [images.length, video, paused]);
 
-    const timer = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % heroImages.length);
-    }, 20000);
-
-    return () => window.clearInterval(timer);
-  }, [heroImages.length, isVideo]);
-
-  const showPrevious = () => {
-    setActiveIndex(
-      (current) => (current - 1 + heroImages.length) % heroImages.length,
-    );
-  };
-
-  const showNext = () => {
-    setActiveIndex((current) => (current + 1) % heroImages.length);
-  };
+  const prev = () => setActive((c) => (c - 1 + images.length) % images.length);
+  const next = () => setActive((c) => (c + 1) % images.length);
+  const media = 'absolute inset-0 h-full w-full object-cover';
 
   return (
-    <section
-      id="home"
-      className="relative isolate overflow-hidden bg-[#211B17] text-white"
-    >
-      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center lg:min-h-[720px] lg:grid-cols-[0.92fr_1.08fr]">
-        {/* Left side: hero copy */}
-        <div className="relative z-10 flex items-center px-5 py-16 sm:px-10 sm:py-20 lg:px-12 lg:py-24 xl:px-14">
-          <div className="mx-auto w-full max-w-xl animate-slide-up lg:mx-0">
-            <p className="mb-5 inline-flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.28em] text-[#E7C98F] sm:mb-6 sm:text-xs sm:tracking-[0.4em]">
-              <span className="h-px w-8 bg-[#211B17] sm:w-9" />
-              The Art of Adornment
-            </p>
-
-            <h1
-              className="font-display text-[2.55rem] font-normal leading-[1.1] tracking-tight sm:text-6xl lg:text-5xl xl:text-7xl"
-              style={{
-                color: "#FFFDF9",
-                textShadow: "0 2px 10px rgba(0,0,0,0.3)",
-                letterSpacing: "-0.01em",
-                WebkitTextStroke: "0.4px rgba(255,248,232,0.22)",
-              }}
-            >
-              Jewellery That
-              <span className="mt-1 block italic" style={{ color: "#E7C98F" }}>
-                Makes Every
-              </span>
-              <span className="block">Moment Special</span>
-            </h1>
-
-            <p className="mt-5 max-w-lg text-sm leading-7 text-white/80 sm:mt-7 sm:text-base sm:leading-8">
-              Discover jewellery that brings elegance to your everyday style and
-              adds a special touch to life&apos;s memorable occasions.
-            </p>
-
-            <div className="mt-7 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:flex-wrap sm:gap-4">
-              <a
-                href="#collections"
-                className="group inline-flex min-h-12 w-full items-center justify-center gap-3 border border-[#E7C98F]/80 bg-black/20 px-6 py-3.5 text-sm font-medium text-white transition-all duration-300 hover:border-[#FFF8E8] hover:bg-black/45 hover:shadow-[0_0_18px_rgba(231,201,143,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E7C98F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#211B17] sm:w-auto sm:px-7"
-              >
-                Explore Collections
-                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </a>
-
-              <a
-                href="#about"
-                className="inline-flex min-h-12 w-full items-center justify-center border border-white/50 px-6 py-3.5 text-sm font-medium text-white transition-all duration-300 hover:border-[#E7C98F] hover:bg-white/5 hover:shadow-[0_0_18px_rgba(231,201,143,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E7C98F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#211B17] sm:w-auto sm:px-7"
-              >
-                Discover Our Story
-              </a>
-            </div>
-
-            <div className="mt-8 flex items-center gap-4 text-[10px] uppercase tracking-[0.2em] text-white/65 sm:mt-12 sm:tracking-[0.24em]">
-              <span className="h-px w-10 bg-[#D6B16D] sm:w-12" />
-              Elegance in every detail
-            </div>
+    <section id="home" className="relative isolate overflow-hidden bg-gradient-to-b from-[#F1E9DA] to-[#E3D3B6] text-ink">
+      <div className="mx-auto grid max-w-7xl items-center gap-8 px-5 pb-0 pt-0 sm:px-8 lg:min-h-[680px] lg:grid-cols-[1fr_0.9fr] lg:gap-12 lg:px-12 lg:py-0">
+        <div className="order-2 mx-auto w-full max-w-xl pb-12 text-center lg:order-1 lg:mx-0 lg:pb-0 lg:text-left">
+          <p className="text-[10.5px] tracking-[0.4em] text-gold-700">NEW SEASON · 1 GRAM GOLD</p>
+          <h1 className="mt-4 font-display text-[3.4rem] font-normal italic leading-[0.92] sm:text-7xl xl:text-[5.5rem]">
+            Quietly <br className="hidden lg:block" />radiant
+          </h1>
+          <p className="mt-5 text-[12px] font-light uppercase tracking-[0.5em]">Jewellery for every occasion</p>
+          <p className="mx-auto mt-5 max-w-md text-[15px] leading-7 text-ink/75 lg:mx-0">
+            Gold-plated pieces for weddings, festivals and everyday wear. Designed in Mira Road, Mumbai and delivered across India.
+          </p>
+          <div className="mt-7 flex flex-col items-center gap-4 sm:flex-row sm:justify-center lg:justify-start">
+            <a href={shopHref()} className="inline-flex min-h-12 items-center justify-center bg-onyx-300 px-10 text-[12px] font-medium uppercase tracking-[0.2em] text-white transition-colors hover:bg-onyx-200">Shop the collection</a>
+            <a href="#about" className="inline-flex min-h-12 items-center text-[12px] font-medium uppercase tracking-[0.2em]"><span className="border-b border-ink pb-1">Our story</span></a>
           </div>
         </div>
 
-        {/* Right side: portrait product image with a controlled desktop overlap */}
-        <div className="relative z-20 bg-[#211B17] px-4 pb-5 pt-4 sm:px-8 sm:pb-7 sm:pt-6 lg:my-12 lg:-ml-8 lg:bg-transparent lg:px-0 lg:py-0 xl:-ml-12">
-          <div className="relative mx-auto w-full max-w-[560px] lg:max-w-none">
-            {/* Cream frame behind the photo; overlap is disabled on small screens. */}
-            <div
-              aria-hidden="true"
-              className="absolute -inset-x-2 -inset-y-2 hidden bg-[#211B17] sm:-inset-x-4 sm:-inset-y-4 lg:block"
-            />
-
-            <div className="relative aspect-[4/5] max-h-[680px] w-full overflow-hidden bg-[#211B17]">
-              {isVideo && heroVideo ? (
-                <video
-                  src={heroVideo}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="metadata"
-                  className="absolute inset-0 h-full w-full object-contain p-3 sm:p-6 lg:p-8"
-                />
+        <div className="order-1 -mx-5 w-auto max-w-none sm:-mx-8 lg:order-2 lg:mx-auto lg:w-full lg:max-w-[440px] lg:self-end" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+          <div
+            className="relative lg:animate-arch-rise lg:rounded-t-full lg:border lg:border-b-0 lg:border-[#A9844599] lg:p-3"
+            onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => {
+              if (touchX.current === null || images.length < 2) return;
+              const dx = e.changedTouches[0].clientX - touchX.current;
+              touchX.current = null;
+              if (Math.abs(dx) > 40) (dx < 0 ? next : prev)();
+            }}
+          >
+            <div className="relative aspect-[5/6] w-full overflow-hidden bg-[#ECE2CF] sm:aspect-[16/10] lg:aspect-[4/5] lg:rounded-t-full lg:border lg:border-b-0 lg:border-[#A9844599]">
+              {video ? (
+                <video src={video} autoPlay muted loop playsInline preload="metadata" className={media} />
               ) : (
-                heroImages.map((image, index) => (
+                images.map((src, i) => (
                   <img
-                    key={`${image}-${index}`}
-                    src={image}
-                    alt="Yaba's Jewelry collection"
-                    fetchPriority={index === activeIndex ? "high" : "auto"}
+                    key={`${src}-${i}`}
+                    src={src}
+                    alt={i === active ? "Yaba's jewellery collection" : ''}
+                    aria-hidden={i !== active}
+                    {...{ fetchpriority: i === active ? 'high' : 'auto' }}
                     decoding="async"
-                    onError={(event) => {
-                      if (event.currentTarget.src !== FALLBACK_IMAGE) {
-                        event.currentTarget.src = FALLBACK_IMAGE;
-                      }
-                    }}
-                    className={`absolute inset-0 h-full w-full object-contain p-3 transition-opacity duration-700 ease-in-out sm:p-6 lg:p-8 ${
-                      index === activeIndex ? "opacity-100" : "opacity-0"
-                    }`}
-                    aria-hidden={index !== activeIndex}
+                    onError={(e) => { if (e.currentTarget.src !== FALLBACK_IMAGE) e.currentTarget.src = FALLBACK_IMAGE; }}
+                    className={`${media} transition-opacity duration-700 ${i === active ? 'opacity-100' : 'opacity-0'}`}
                   />
                 ))
               )}
             </div>
-
-            {/* Slim gold controls sit beneath the image, never over the product. */}
-            {!isVideo && heroImages.length > 1 && (
-              <div className="relative z-10 mt-4 flex min-h-10 items-center justify-between border-t border-[#B99A61]/50 pt-3 sm:mt-5 sm:pt-4">
-                <button
-                  type="button"
-                  onClick={showPrevious}
-                  aria-label="Previous photo"
-                  className="inline-flex min-h-10 items-center gap-2 px-1 text-xs font-medium uppercase tracking-[0.16em] text-[#E7C98F] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6B31] focus-visible:ring-offset-2 focus-visible:ring-offset-[#211B17]"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-
-                <div
-                  className="flex items-center gap-2"
-                  role="group"
-                  aria-label="Choose hero image"
-                >
-                  {heroImages.map((image, index) => (
-                    <button
-                      key={`${image}-${index}`}
-                      type="button"
-                      onClick={() => setActiveIndex(index)}
-                      aria-label={`Show hero image ${index + 1}`}
-                      aria-current={activeIndex === index ? "true" : undefined}
-                      className={`h-1.5 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6B31] focus-visible:ring-offset-2 focus-visible:ring-offset-[#211B17] ${
-                        activeIndex === index
-                          ? "w-7 bg-[#E7C98F]"
-                          : "w-3 bg-[#E7C98F]/35 hover:bg-[#E7C98F]/70"
-                      }`}
-                    />
+            {!video && images.length > 1 && (
+              <div className="absolute inset-x-0 bottom-0 flex items-center lg:bottom-3 justify-center gap-2 bg-gradient-to-t from-black/45 to-transparent pb-1 pt-8">
+                <button type="button" onClick={prev} aria-label="Previous photo" className="grid h-10 w-10 place-items-center text-white"><ChevronLeft className="h-5 w-5" /></button>
+                <div className="flex items-center" role="group" aria-label="Choose hero image">
+                  {images.map((_, i) => (
+                    <button key={i} type="button" onClick={() => setActive(i)} aria-label={`Show image ${i + 1}`} aria-current={active === i ? 'true' : undefined} className="grid h-6 w-6 place-items-center">
+                      <span className={`block h-1.5 transition-all ${active === i ? 'w-6 bg-white' : 'w-1.5 bg-white/60'}`} />
+                    </button>
                   ))}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={showNext}
-                  aria-label="Next photo"
-                  className="inline-flex min-h-10 items-center gap-2 px-1 text-xs font-medium uppercase tracking-[0.16em] text-[#E7C98F] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6B31] focus-visible:ring-offset-2 focus-visible:ring-offset-[#211B17]"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
+                <button type="button" onClick={next} aria-label="Next photo" className="grid h-10 w-10 place-items-center text-white"><ChevronRight className="h-5 w-5" /></button>
               </div>
             )}
           </div>
         </div>
       </div>
-
-      {/* Subtle bottom border */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#D6B16D]/70 to-transparent"
-      />
     </section>
   );
 }

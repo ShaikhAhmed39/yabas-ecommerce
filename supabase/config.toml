@@ -22,3 +22,24 @@ entrypoint = "./functions/manage-return-request/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/manage-return-request/*.html" ]
+
+# ---- Public endpoints that authenticate themselves (no Supabase user JWT is sent by the caller) ----
+# Razorpay -> verified by HMAC signature over the raw body
+[functions.razorpay-webhook]
+verify_jwt = false
+
+# Courier (Shiprocket) -> verified by the x-api-key token (SHIPROCKET_WEBHOOK_TOKEN)
+[functions.courier-webhook]
+verify_jwt = false
+
+# pg_cron -> verified by the x-cron-secret header (CRON_SECRET)
+[functions.reconcile-orders]
+verify_jwt = false
+
+# Public pincode check used on product / checkout pages
+[functions.check-delivery]
+verify_jwt = false
+
+# Guest order tracking (order number + phone). Rate limited inside the database.
+[functions.track-order]
+verify_jwt = false
