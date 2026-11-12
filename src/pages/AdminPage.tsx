@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileText, Gift, Image as ImageIcon, LayoutDashboard, LogOut, Menu, Package, Settings, ShoppingBag, Store, Tag, Undo2, X } from 'lucide-react';
+import { Activity, FileText, Gift, Image as ImageIcon, LayoutDashboard, LogOut, Menu, Package, Settings, ShoppingBag, Store, Tag, Undo2, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { DashboardPanel } from '@/components/admin/DashboardPanel';
 import { OrdersPanel } from '@/components/admin/OrdersPanel';
@@ -10,6 +10,7 @@ import { CouponsPanel } from '@/components/admin/CouponsPanel';
 import { ScratchPanel } from '@/components/admin/ScratchPanel';
 import { ReportsPanel } from '@/components/admin/ReportsPanel';
 import { SettingsPanel } from '@/components/admin/SettingsPanel';
+import { HealthPanel } from '@/components/admin/HealthPanel';
 
 const SECTIONS = [
   { id: 'dashboard', title: 'Dashboard', icon: LayoutDashboard, hint: 'Sales and what needs you today' },
@@ -20,6 +21,7 @@ const SECTIONS = [
   { id: 'coupons', title: 'Coupons', icon: Tag, hint: 'Discount codes' },
   { id: 'scratch', title: 'Scratch cards', icon: Gift, hint: 'Rewards after purchase' },
   { id: 'reports', title: 'PDF reports', icon: FileText, hint: 'Everything in one PDF' },
+  { id: 'health', title: 'System health', icon: Activity, hint: 'Is everything working?' },
   { id: 'settings', title: 'Store settings', icon: Settings, hint: 'Business details, charges, policies' },
 ] as const;
 type Id = (typeof SECTIONS)[number]['id'];
@@ -80,6 +82,7 @@ export function AdminPage({ onNavigate }: { onNavigate: (page: 'storefront') => 
         {tab === 'coupons' && <CouponsPanel />}
         {tab === 'scratch' && <ScratchPanel />}
         {tab === 'reports' && <ReportsPanel />}
+        {tab === 'health' && <HealthPanel go={open} />}
         {tab === 'settings' && <SettingsPanel />}
       </main>
 

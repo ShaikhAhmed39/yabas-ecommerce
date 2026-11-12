@@ -60,6 +60,8 @@ export default {
         'arch-rise': 'archRise 1.1s cubic-bezier(0.22, 1, 0.36, 1) both',
         'slide-up': 'slideUp 0.5s ease-out',
         'slide-in-right': 'slideInRight 0.3s ease-out',
+        'slide-in-left': 'slideInLeft 0.3s ease-out',
+        'drop-in': 'dropIn 0.35s ease-out',
         'scale-in': 'scaleIn 0.25s ease-out',
         'shimmer': 'shimmer 2s linear infinite',
         'ticker': 'ticker 30s linear infinite',
@@ -82,6 +84,14 @@ export default {
         slideInRight: {
           '0%': { transform: 'translateX(100%)' },
           '100%': { transform: 'translateX(0)' },
+        },
+        slideInLeft: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        dropIn: {
+          '0%': { opacity: '0', transform: 'translateY(-14px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         scaleIn: {
           '0%': { opacity: '0', transform: 'scale(0.95)' },

@@ -25,7 +25,7 @@ export function ProductPage({ id }: { id: string }) {
   const [delivery, setDelivery] = useState<{ state: 'idle' | 'busy' | 'yes' | 'no' | 'unknown' | 'bad'; days?: number }>({ state: 'idle' });
   const [shared, setShared] = useState(false);
 
-  useEffect(() => { setQty(1); window.scrollTo({ top: 0 }); }, [id]);
+  useEffect(() => { setQty(1); window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); }, [id]);
   useEffect(() => { if (product) document.title = `${product.title} | Yaba's Imitation & Jewellery`; return () => { document.title = "Yaba's Imitation & Jewellery"; }; }, [product]);
 
   const related = useMemo(

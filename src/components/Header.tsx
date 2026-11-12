@@ -134,7 +134,7 @@ export function Header({ route, onSignIn }: { route: Route; onSignIn: () => void
       {menuOpen && (
         <div className="fixed inset-0 z-[60] lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <div className="absolute inset-0 bg-ink/60" onClick={() => setMenuOpen(false)} />
-          <aside className="jaali-teal absolute inset-y-0 left-0 flex w-[84%] max-w-[340px] flex-col text-cream-100 animate-slide-in-right">
+          <aside className="jaali-teal absolute inset-y-0 left-0 flex w-[84%] max-w-[340px] flex-col text-cream-100 animate-slide-in-left">
             <div className="flex items-center justify-between border-b border-gold-400/30 px-4 py-3">
               <span className="font-display text-xl tracking-[0.12em] text-gold-200">YABA&apos;S</span>
               <button onClick={() => setMenuOpen(false)} className={iconBtn} aria-label="Close menu"><X className="h-6 w-6" /></button>

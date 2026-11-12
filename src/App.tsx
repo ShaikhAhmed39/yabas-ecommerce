@@ -42,7 +42,7 @@ function Shell() {
   // finish the checkout the customer started before signing in
   useEffect(() => { if (wantsCheckout && user) { setWantsCheckout(false); setAuthOpen(false); go('/checkout'); } }, [wantsCheckout, user]);
 
-  useEffect(() => { window.scrollTo({ top: 0 }); }, [route.name, route.name === 'product' ? route.id : '']); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); }, [route.name, route.name === 'product' ? route.id : '']); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (route.name === 'admin') {
     if (loading) return <div className="grid min-h-screen place-items-center text-onyx-300">Loading…</div>;
@@ -119,7 +119,7 @@ function Shell() {
     <div className="min-h-screen bg-cream-100 pb-16 lg:pb-0">
       <GoldTicker />
       <Header route={route} onSignIn={() => signIn()} />
-      <main id="main">{page}</main>
+      <main id="main" key={route.name === 'product' ? `product-${route.id}` : route.name} className="animate-drop-in">{page}</main>
       <Footer />
       <BottomNav route={route} />
       {route.name !== 'product' && <WhatsAppButton />}
