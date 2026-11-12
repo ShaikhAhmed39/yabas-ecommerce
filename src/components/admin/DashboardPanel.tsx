@@ -9,12 +9,15 @@ import { btnGhost, Card, Notice, Stat } from '@/components/admin/AdminUI';
 import type { AdminOrder } from '@/components/admin/adminTypes';
 
 const DAY = 86_400_000;
+type Range = 'today' | 'week' | 'month';
+const RANGE_TITLE: Record<Range, string> = { today: 'Sales today', week: 'Sales: last 7 days', month: 'Sales: last 30 days' };
 
 export function DashboardPanel({ go }: { go: (section: string) => void }) {
   const [data, setData] = useState<OrdersPage | null>(null);
   const [lowStock, setLowStock] = useState<{ id: string; title: string; stock: number }[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
+  const [range, setRange] = useState<Range | null>(null);
 
   const load = async () => {
     setBusy(true); setErr(null);
@@ -46,11 +49,12 @@ export function DashboardPanel({ go }: { go: (section: string) => void }) {
         <button onClick={() => void load()} className={btnGhost}><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} />Refresh</button>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Sales today" value={formatINR(sum(today))} sub={`${today.length} paid order${today.length === 1 ? '' : 's'}`} tone="good" />
-        <Stat label="Last 7 days" value={formatINR(sum(week))} sub={`${week.length} orders`} />
-        <Stat label="Last 30 days" value={formatINR(sum(month))} sub={`${month.length} orders`} />
+        <button className="h-full text-left [&>div]:h-full" aria-pressed={range === 'today'} onClick={() => setRange(range === 'today' ? null : 'today')}><Stat label="Sales today" value={formatINR(sum(today))} sub={`${today.length} paid order${today.length === 1 ? '' : 's'} · tap for details`} tone="good" /></button>
+        <button className="h-full text-left [&>div]:h-full" aria-pressed={range === 'week'} onClick={() => setRange(range === 'week' ? null : 'week')}><Stat label="Last 7 days" value={formatINR(sum(week))} sub={`${week.length} orders · tap for details`} /></button>
+        <button className="h-full text-left [&>div]:h-full" aria-pressed={range === 'month'} onClick={() => setRange(range === 'month' ? null : 'month')}><Stat label="Last 30 days" value={formatINR(sum(month))} sub={`${month.length} orders · tap for details`} /></button>
         <Stat label="Average order" value={formatINR(month.length ? sum(month) / month.length : 0)} sub="last 30 days" />
       </div>
+      {range && <SalesDetail title={RANGE_TITLE[range]} orders={{ today, week, month }[range]} sum={sum} onClose={() => setRange(null)} />}
       <p className="-mt-2 text-xs text-ink/55">Sales are paid orders minus refunds, from your latest {data.orders.length} orders.</p>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <button className="h-full text-left [&>div]:h-full" onClick={() => go('orders')}><Stat label="To ship" value={c.to_ship ?? 0} tone={c.to_ship ? 'warn' : 'neutral'} sub="paid, not shipped" /></button>
@@ -73,3 +77,53 @@ export function DashboardPanel({ go }: { go: (section: string) => void }) {
     </div>
   );
 }
+
+function SalesDetail({ title, orders, sum, onClose }: { title: string; orders: AdminOrder[]; sum: (l: AdminOrder[]) => number; onClose: () => void }) {
+  const byState = new Map<string, { n: number; amount: number }>();
+  for (const o of orders) {
+    const k = (o.state ?? '').trim() || 'Unknown';
+    const cur = byState.get(k) ?? { n: 0, amount: 0 };
+    cur.n += 1; cur.amount += num(o.total_amount) - num(o.refunded_amount);
+    byState.set(k, cur);
+  }
+  const states = [...byState.entries()].sort((a, b) => b[1].amount - a[1].amount);
+  return (
+    <Card title={`${title}: who bought what`} action={<button onClick={onClose} className="text-sm text-onyx-300 underline">Close</button>}>
+      {orders.length === 0 ? <p className="text-sm text-ink/65">No paid orders in this period yet.</p> : (
+        <>
+          <p className="mb-3 text-sm text-ink/70">{orders.length} paid order{orders.length === 1 ? '' : 's'} · total {formatINR(sum(orders))} after refunds</p>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {states.map(([k, v]) => <span key={k} className="rounded-full border border-cream-400 bg-cream-100 px-3 py-1 text-xs text-ink/80">{k}: {v.n} · {formatINR(v.amount)}</span>)}
+          </div>
+          <div className="hidden overflow-x-auto lg:block">
+            <table className="w-full text-left text-sm">
+              <thead><tr className="border-b border-cream-300 text-xs uppercase tracking-wider text-ink/55"><th className="py-2 pr-3">Order</th><th className="pr-3">When</th><th className="pr-3">Customer</th><th className="pr-3">What they bought</th><th className="pr-3">City, State</th><th className="pr-3 text-right">Amount</th><th>Status</th></tr></thead>
+              <tbody className="divide-y divide-cream-300">
+                {orders.map((o) => (
+                  <tr key={o.id} className="align-top">
+                    <td className="py-2.5 pr-3 font-medium">{o.order_number ?? o.id.slice(0, 8)}</td>
+                    <td className="pr-3 whitespace-nowrap">{formatDate(o.paid_at ?? o.created_at, true)}</td>
+                    <td className="pr-3">{o.customer_name ?? '—'}{o.primary_phone ? <span className="block text-xs text-ink/55">{o.primary_phone}</span> : null}</td>
+                    <td className="pr-3">{itemsText(o)}</td>
+                    <td className="pr-3">{[o.city, o.state].filter(Boolean).join(', ') || '—'}</td>
+                    <td className="pr-3 text-right whitespace-nowrap">{money(num(o.total_amount) - num(o.refunded_amount))}</td>
+                    <td>{label(o.delivery_status)}</td>
+                  </tr>))}
+              </tbody>
+            </table>
+          </div>
+          <ul className="divide-y divide-cream-300 lg:hidden">
+            {orders.map((o) => (
+              <li key={o.id} className="py-3 text-sm">
+                <div className="flex justify-between gap-3"><span className="font-medium">{o.order_number ?? o.id.slice(0, 8)}</span><span className="whitespace-nowrap">{money(num(o.total_amount) - num(o.refunded_amount))}</span></div>
+                <p className="text-ink/65">{formatDate(o.paid_at ?? o.created_at, true)} · {o.customer_name ?? '—'}</p>
+                <p className="mt-0.5">{itemsText(o)}</p>
+                <p className="text-xs text-ink/55">{[o.city, o.state].filter(Boolean).join(', ') || '—'} · {label(o.delivery_status)}</p>
+              </li>))}
+          </ul>
+        </>)}
+    </Card>
+  );
+}
+
+const itemsText = (o: AdminOrder) => (o.items ?? []).map((i) => `${i.product_title} × ${i.quantity}`).join(', ') || '—';
