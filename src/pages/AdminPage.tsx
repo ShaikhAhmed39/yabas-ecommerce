@@ -30,7 +30,7 @@ type Id = (typeof SECTIONS)[number]['id'];
 const PRIMARY: Id[] = ['dashboard', 'orders', 'returns', 'products'];
 
 function readTab(): Id {
-  const q = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('tab');
+  const q = new URLSearchParams(window.location.search).get('tab');
   return (SECTIONS.find((s) => s.id === q)?.id ?? 'dashboard') as Id;
 }
 
@@ -41,10 +41,10 @@ export function AdminPage({ onNavigate }: { onNavigate: (page: 'storefront') => 
 
   useEffect(() => {
     const on = () => setTab(readTab());
-    window.addEventListener('hashchange', on);
-    return () => window.removeEventListener('hashchange', on);
+    window.addEventListener('popstate', on);
+    return () => window.removeEventListener('popstate', on);
   }, []);
-  const open = (id: string) => { setMore(false); window.location.hash = `#/admin?tab=${id}`; window.scrollTo({ top: 0 }); };
+  const open = (id: string) => { setMore(false); window.history.pushState(null, '', `/admin?tab=${id}`); setTab(readTab()); window.scrollTo({ top: 0 }); };
   const current = SECTIONS.find((s) => s.id === tab) ?? SECTIONS[0];
 
   const navBtn = (s: (typeof SECTIONS)[number]) => (

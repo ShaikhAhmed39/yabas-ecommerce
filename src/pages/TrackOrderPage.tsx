@@ -61,7 +61,7 @@ export function TrackOrderPage({ initialOrder }: { initialOrder?: string }) {
         {error && <p role="alert" className="rounded-md bg-[#FBEAEE] p-3 text-sm text-maroon-600">{error}</p>}
         <button disabled={busy} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded bg-onyx-300 font-display text-sm tracking-[0.12em] text-gold-200 disabled:opacity-60">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageSearch className="h-4 w-4" />}TRACK ORDER</button>
-        <p className="text-center text-[13px] text-ink/60">Have an account? <a href="#/orders" className="text-onyx-300 underline underline-offset-4">Open My orders</a> for returns and full history.</p>
+        <p className="text-center text-[13px] text-ink/60">Have an account? <a href="/orders" className="text-onyx-300 underline underline-offset-4">Open My orders</a> for returns and full history.</p>
       </form>
 
       {result && (

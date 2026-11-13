@@ -1,5 +1,7 @@
 export interface Product {
   id: string;
+  /** clean web address part, e.g. kundan-choker (made automatically from the title) */
+  slug?: string | null;
   title: string;
   description: string;
   original_price: number;

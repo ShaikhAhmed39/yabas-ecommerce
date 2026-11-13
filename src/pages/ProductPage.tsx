@@ -8,7 +8,7 @@ import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useStoreConfig } from '@/lib/storeConfig';
 import { callFunction } from '@/lib/api';
-import { go, shopHref } from '@/lib/router';
+import { go, productHref, shopHref } from '@/lib/router';
 import { POLICY_LINKS } from '@/lib/policies';
 import { formatINR, calculateDiscount } from '@/utils/format';
 import { productImages } from '@/utils/images';
@@ -19,12 +19,14 @@ export function ProductPage({ id }: { id: string }) {
   const { addToCart, setCartOpen, items } = useCart();
   const wish = useWishlist();
   const { config } = useStoreConfig();
-  const product = products.find((p) => p.id === id);
+  const product = products.find((p) => p.slug === id) ?? products.find((p) => p.id === id);
   const [qty, setQty] = useState(1);
   const [pin, setPin] = useState('');
   const [delivery, setDelivery] = useState<{ state: 'idle' | 'busy' | 'yes' | 'no' | 'unknown' | 'bad'; days?: number }>({ state: 'idle' });
   const [shared, setShared] = useState(false);
 
+  // an old link (by id) is quietly moved to the clean address
+  useEffect(() => { if (product?.slug && id !== product.slug) go(productHref(product), { replace: true }); }, [product, id]);
   useEffect(() => { setQty(1); window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); }, [id]);
   useEffect(() => { if (product) document.title = `${product.title} | Yaba's Imitation & Jewellery`; return () => { document.title = "Yaba's Imitation & Jewellery"; }; }, [product]);
 
@@ -83,7 +85,7 @@ export function ProductPage({ id }: { id: string }) {
     <div className="pb-28 lg:pb-12">
       <Section className="pt-4 lg:max-w-[1440px]">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-[13px] text-ink/65">
-          <a href="#/" className="hover:text-onyx-300">Home</a><ChevronRight className="h-3.5 w-3.5" aria-hidden />
+          <a href="/" className="hover:text-onyx-300">Home</a><ChevronRight className="h-3.5 w-3.5" aria-hidden />
           <a href={shopHref(product.category)} className="hover:text-onyx-300">{product.category || 'Shop'}</a><ChevronRight className="h-3.5 w-3.5" aria-hidden />
           <span className="line-clamp-1 text-ink">{product.title}</span>
         </nav>
