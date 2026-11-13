@@ -3,8 +3,20 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { shopHref } from '@/lib/router';
 
-const HERO_IMAGE = 'https://images.pexels.com/photos/8891961/pexels-photo-8891961.jpeg?auto=compress&cs=tinysrgb&w=2000';
-const FALLBACK_IMAGE = 'https://placehold.co/1200x1500/ECE2CF/A98445?text=Yaba%27s';
+import { PLACEHOLDER_IMG } from '@/utils/images';
+
+/** Only the shop's OWN photos are ever shown. No stock photo, no placeholder website.
+ *  The last banner photos and a few featured products are remembered on the device, so a returning visitor
+ *  who is offline still sees the shop's necklaces. A first-time offline visitor sees the plain Yaba's card. */
+const CACHE_KEY = 'yabas:hero-images:v1';
+const FALLBACK_KEY = 'yabas:hero-fallback:v1';
+const readList = (key: string): string[] => {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(key) ?? '[]');
+    return Array.isArray(v) ? v.filter((u): u is string => typeof u === 'string' && u.startsWith('https://')) : [];
+  } catch { return []; }
+};
+const writeList = (key: string, list: string[]) => { try { window.localStorage.setItem(key, JSON.stringify(list.slice(0, 8))); } catch { /* storage blocked: fine */ } };
 
 type PublishedHeroSettings = {
   published_mode: 'slideshow' | 'video';
@@ -16,7 +28,7 @@ type PublishedHeroSettings = {
 /** Editorial hero: centred italic headline over a champagne wash, with the photos inside a hairline-gold arch.
  *  Photos or video come from Admin > Home banner (Cloudinary), exactly as before. */
 export function Hero() {
-  const [images, setImages] = useState<string[]>([HERO_IMAGE]);
+  const [images, setImages] = useState<string[]>(() => { const saved = readList(CACHE_KEY); return saved.length ? saved : readList(FALLBACK_KEY).length ? readList(FALLBACK_KEY) : [PLACEHOLDER_IMG]; });
   const [active, setActive] = useState(0);
   const [video, setVideo] = useState('');
   const [paused, setPaused] = useState(false);
@@ -32,11 +44,17 @@ export function Hero() {
         .order('published_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (cancelled || error || !data) return;
+      if (cancelled) return;
+      // Keep a few of our own product photos for the day the banner cannot load.
+      const { data: feat } = await supabase.from('products').select('image_url').eq('is_featured', true).gt('stock', 0).limit(6);
+      const own = (feat ?? []).map((r: { image_url: string | null }) => r.image_url ?? '').filter((u) => u.startsWith('https://'));
+      if (own.length) writeList(FALLBACK_KEY, own);
+      if (error || !data) { if (!readList(CACHE_KEY).length && own.length) setImages(own); return; }
       const s = data as PublishedHeroSettings;
       if (s.published_mode === 'video' && s.published_video_url) { setVideo(s.published_video_url); return; }
       const urls = (s.published_image_urls ?? []).filter((u): u is string => typeof u === 'string' && u.startsWith('https://'));
-      if (urls.length) { setImages(urls); setActive(0); setVideo(''); }
+      if (urls.length) { writeList(CACHE_KEY, urls); setImages(urls); setActive(0); setVideo(''); }
+      else if (own.length) setImages(own);
     })();
     return () => { cancelled = true; };
   }, []);
@@ -92,7 +110,11 @@ export function Hero() {
                     aria-hidden={i !== active}
                     {...{ fetchpriority: i === active ? 'high' : 'auto' }}
                     decoding="async"
-                    onError={(e) => { if (e.currentTarget.src !== FALLBACK_IMAGE) e.currentTarget.src = FALLBACK_IMAGE; }}
+                    onError={() => {
+                      // this photo failed (offline / link broken): switch to our own saved photos, else the plain card
+                      const own = readList(FALLBACK_KEY).filter((u) => !images.includes(u));
+                      setImages(own.length ? own : [PLACEHOLDER_IMG]); setActive(0);
+                    }}
                     className={`${media} transition-opacity duration-700 ${i === active ? 'opacity-100' : 'opacity-0'}`}
                   />
                 ))
