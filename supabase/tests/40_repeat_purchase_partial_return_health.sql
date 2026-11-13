@@ -124,3 +124,26 @@ begin
   assert (select coalesce(sum(quantity),0) from public.return_requests where order_item_id = item and status not in ('rejected','cancelled')) = 3, 'three pieces in active returns';
   raise notice 'PASS 4 partial quantity returns (1, 1, 1 of 3)';
 end $$;
+
+-- 5. admin gold margin: admins only, validated, re-prices the latest rate and keeps its timestamp -----------------
+do $$
+declare adm uuid := t4.mk_user(); cust uuid := t4.mk_user(); ok boolean := false; s jsonb; t0 timestamptz; id0 uuid;
+begin
+  insert into public.admin_users(id, email) values (adm, 'gold@t.test');
+  insert into public.gold_rates(rate_per_gram_24k, raw_rate_per_gram, margin_percent, created_at)
+  values (11000, 10000, 10, now() - interval '3 hours') returning id, created_at into id0, t0;
+
+  perform t4.as_user(cust);
+  begin perform public.admin_set_gold_margin(12); exception when others then ok := sqlerrm like '%permission denied%'; end;
+  assert ok, 'customers cannot change the margin';
+
+  perform t4.as_user(adm);
+  s := public.admin_set_gold_margin(19);
+  assert (s ->> 'final_rate')::numeric = 11900 and (s ->> 'margin_percent')::numeric = 19, 'final rate = raw x 1.19';
+  assert (select created_at from public.gold_rates where id = id0) = t0, 'market timestamp is kept';
+  ok := false;
+  begin perform public.admin_set_gold_margin(190); exception when others then ok := sqlerrm like '%between 0 and 60%'; end;
+  assert ok, 'typo margins are refused';
+  perform t4.as_service();
+  raise notice 'PASS 5 admin gold margin';
+end $$;
