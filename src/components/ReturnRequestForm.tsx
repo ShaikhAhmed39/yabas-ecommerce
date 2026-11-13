@@ -50,6 +50,10 @@ interface ReturnRequestFormProps {
 
   productTitle: string;
 
+  /** how many pieces of this line can still be returned */
+
+  maxQuantity?: number;
+
   onCancel: () => void;
 
   onSubmit?: (data: {
@@ -59,6 +63,8 @@ interface ReturnRequestFormProps {
     description: string;
 
     photos: File[];
+
+    quantity: number;
 
   }) => void | Promise<void>;
 
@@ -72,6 +78,8 @@ export function ReturnRequestForm({
 
   productTitle,
 
+  maxQuantity = 1,
+
   onCancel,
 
   onSubmit,
@@ -81,6 +89,8 @@ export function ReturnRequestForm({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [reason, setReason] = useState('');
+
+  const [quantity, setQuantity] = useState(1);
 
   const [description, setDescription] = useState('');
 
@@ -268,6 +278,8 @@ export function ReturnRequestForm({
 
         photos,
 
+        quantity: Math.min(Math.max(quantity, 1), maxQuantity),
+
       });
 
       setSuccess(true);
@@ -356,6 +368,40 @@ export function ReturnRequestForm({
           ) : (
 
             <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+
+              {maxQuantity > 1 && (
+
+                <div>
+
+                  <label htmlFor="return-quantity" className="mb-2 block text-sm font-medium text-stone-800">
+
+                    How many pieces do you want to return?
+
+                  </label>
+
+                  <select
+
+                    id="return-quantity"
+
+                    value={quantity}
+
+                    onChange={(event) => setQuantity(Number(event.target.value))}
+
+                    className="w-full rounded-lg border border-cream-400 bg-white px-3 py-2.5 text-sm sm:w-48"
+
+                  >
+
+                    {Array.from({ length: maxQuantity }, (_, i) => i + 1).map((n) => (
+
+                      <option key={n} value={n}>{n} of {maxQuantity}</option>
+
+                    ))}
+
+                  </select>
+
+                </div>
+
+              )}
 
               <div>
 

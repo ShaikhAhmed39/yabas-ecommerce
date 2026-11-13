@@ -9,6 +9,7 @@ interface ReturnRecord {
   id: string;
   order_id: string;
   order_item_id: string;
+  quantity?: number;
   reason: string;
   description: string;
   status: string;
@@ -122,7 +123,7 @@ export function ReturnsPanel() {
   };
 
   const actions = (r: ReturnRecord) => {
-    const itemTotal = r.item ? Number(r.item.unit_price) * r.item.quantity : 0;
+    const itemTotal = r.item ? Number(r.item.unit_price) * (r.quantity ?? r.item.quantity) : 0;
     const shipmentFailed = r.shipment?.status === 'failed';
     const out: React.ReactNode[] = [];
     const B = (key: string, text: string, onClick: () => void, cls = btnGhost) => (
@@ -160,7 +161,7 @@ export function ReturnsPanel() {
         break;
       case 'inspection_passed':
         out.push(B('refundpending', 'Approve refund amount…', () =>
-          confirmThen(r, { title: 'Refund amount', description: `Maximum ${money(itemTotal)} (the item's price). Nothing is sent to the customer yet.`, input: { label: 'Amount (₹)', type: 'number', required: true, defaultValue: itemTotal.toFixed(2), min: 1, max: itemTotal, step: 0.01 }, confirmLabel: 'Save amount' },
+          confirmThen(r, { title: 'Refund amount', description: `Maximum ${money(itemTotal)} (the price of the pieces being returned). Nothing is sent to the customer yet.`, input: { label: 'Amount (₹)', type: 'number', required: true, defaultValue: itemTotal.toFixed(2), min: 1, max: itemTotal, step: 0.01 }, confirmLabel: 'Save amount' },
             'mark_refund_pending', (v) => ({ refund_amount: Math.round(Number(v) * 100) / 100 }), 'Refund amount saved. You can now issue the refund.'), btnPrimary));
         break;
       case 'refund_pending':
@@ -227,7 +228,8 @@ export function ReturnsPanel() {
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <h3 className="font-serif text-lg font-semibold text-onyx-300">{r.item?.product_title ?? 'Item'}</h3>
-                      <p className="text-sm text-stone-600">{r.item ? `${money(r.item.unit_price)} × ${r.item.quantity}` : ''}</p>
+                      <p className="text-sm text-stone-600">{r.item ? `${money(r.item.unit_price)} each · customer bought ${r.item.quantity}` : ''}</p>
+                      <p className="text-sm font-medium text-onyx-300">{r.item ? `Returning ${r.quantity ?? r.item.quantity} of ${r.item.quantity} piece${r.item.quantity === 1 ? '' : 's'}` : ''}</p>
                       <p className="mt-2 text-sm"><strong>{r.reason}</strong></p>
                       <p className="mt-1 whitespace-pre-wrap text-sm text-stone-700">{r.description}</p>
                       {r.rejection_reason && <p className="mt-2 text-sm text-red-700">Rejected: {r.rejection_reason}</p>}

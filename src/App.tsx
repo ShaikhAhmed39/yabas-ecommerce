@@ -25,7 +25,7 @@ import { callFunction } from '@/lib/api';
 import { go, useRoute } from '@/lib/router';
 import { uploadReturnPhoto } from '@/utils/returnPhotoUpload';
 
-type SelectedReturn = { orderId: string; orderItemId: string; productTitle: string };
+type SelectedReturn = { orderId: string; orderItemId: string; productTitle: string; maxQuantity: number };
 
 function Shell() {
   const route = useRoute();
@@ -73,8 +73,8 @@ function Shell() {
     case 'wishlist': page = <WishlistPage />; break;
     case 'orders':
       page = loading ? null : signedIn ? (
-        <MyOrders onBack={() => go('/')} onRequestReturn={(order, item) => {
-          setSelectedReturn({ orderId: order.id, orderItemId: item.id ?? '', productTitle: item.product_title });
+        <MyOrders onBack={() => go('/')} onRequestReturn={(order, item, maxQuantity) => {
+          setSelectedReturn({ orderId: order.id, orderItemId: item.id ?? '', productTitle: item.product_title, maxQuantity });
           go('/return');
         }} />
       ) : (
@@ -89,11 +89,11 @@ function Shell() {
       else if (!selectedReturn) { go('/orders'); page = null; }
       else page = (
         <ReturnRequestForm
-          orderId={selectedReturn.orderId} orderItemId={selectedReturn.orderItemId} productTitle={selectedReturn.productTitle}
+          orderId={selectedReturn.orderId} orderItemId={selectedReturn.orderItemId} productTitle={selectedReturn.productTitle} maxQuantity={selectedReturn.maxQuantity}
           onCancel={() => go('/orders')}
-          onSubmit={async ({ reason, description, photos }) => {
+          onSubmit={async ({ reason, description, photos, quantity }) => {
             const created = await callFunction<{ return_request?: { id?: string } }>('submit-return-request', {
-              order_id: selectedReturn.orderId, order_item_id: selectedReturn.orderItemId, reason, description,
+              order_id: selectedReturn.orderId, order_item_id: selectedReturn.orderItemId, quantity, reason, description,
             });
             const returnRequestId = created.return_request?.id;
             if (!returnRequestId) throw new Error('The server did not confirm a saved return request. Please check My Orders before trying again.');

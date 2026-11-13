@@ -1,4 +1,4 @@
-// Customer asks to return one item of a delivered order.
+// Customer asks to return one or more pieces of one item of a delivered order.
 import { errorResponse, HttpError, json, preflight, readJson, requirePost, requireUuid, cleanText } from "../_shared/http.ts";
 import { adminClient, authenticate } from "../_shared/supabase.ts";
 import { envNumber } from "../_shared/env.ts";
@@ -12,6 +12,8 @@ Deno.serve(async (req: Request) => {
     const body = await readJson(req);
     const orderId = requireUuid(body.order_id, "order");
     const itemId = requireUuid(body.order_item_id, "item");
+    const quantity = body.quantity === undefined || body.quantity === null ? 1 : Number(body.quantity);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 1000) throw new HttpError(400, "Choose how many pieces you want to return.");
     const reason = cleanText(body.reason, 100);
     const description = cleanText(body.description, 2000);
     if (!reason || reason.length < 3) throw new HttpError(400, "The return reason must be 3-100 characters.");
@@ -31,22 +33,24 @@ Deno.serve(async (req: Request) => {
     const deadline = new Date(order.delivered_at).getTime() + windowDays * 86_400_000;
     if (Date.now() > deadline) throw new HttpError(400, `The ${windowDays}-day return window has ended.`);
 
-    const { data: item } = await db.from("order_items").select("id").eq("id", itemId).eq("order_id", orderId).maybeSingle();
+    const { data: item } = await db.from("order_items").select("id,quantity").eq("id", itemId).eq("order_id", orderId).maybeSingle();
     if (!item) throw new HttpError(400, "This item does not belong to the selected order.");
+    if (quantity > Number(item.quantity)) throw new HttpError(400, `You bought ${item.quantity} of this item, so you can return at most ${item.quantity}.`);
 
-    const { data, error: insertError } = await db
-      .from("return_requests")
-      .insert({ order_id: orderId, order_item_id: itemId, user_id: user.id, reason, description, status: "requested" })
-      .select("id,order_id,order_item_id,status,created_at").single();
+    const { data: created, error: insertError } = await db.rpc("create_return_request", {
+      p_user_id: user.id, p_order_id: orderId, p_item_id: itemId, p_quantity: quantity, p_reason: reason, p_description: description,
+    });
     if (insertError) {
-      // unique index uq_return_requests_active_item: two taps / two tabs cannot create two requests
-      if (insertError.code === "23505") throw new HttpError(409, "A return request already exists for this item.");
+      if (/exceeds purchase/i.test(insertError.message)) {
+        throw new HttpError(409, "These pieces already have a return request. Check My orders to see how many are still left to return.");
+      }
       console.error("Return insert failed:", insertError.message);
       throw new HttpError(500, "Unable to submit your return request.");
     }
+    const data = created as { id: string; order_id: string; order_item_id: string; status: string; quantity: number; created_at: string };
     await db.rpc("log_order_event", {
       p_order_id: orderId, p_actor_type: "customer", p_actor_id: user.id, p_event_type: "return_requested",
-      p_from: null, p_to: "requested", p_note: reason, p_payload: { return_request_id: data.id },
+      p_from: null, p_to: "requested", p_note: `${reason} (${quantity} pc)`, p_payload: { return_request_id: data.id },
     });
     return json({ message: "Your return request has been submitted.", return_request: data }, 201, req);
   } catch (e) {

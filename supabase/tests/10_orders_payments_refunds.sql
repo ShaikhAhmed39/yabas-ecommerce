@@ -290,15 +290,12 @@ begin
   o := t.mk_order(u, p, 1);
   perform t.pay(o, 'pay_T10');
   select id into item from public.order_items where order_id = o;
-  insert into public.return_requests(order_id, order_item_id, user_id, reason, description)
-  values (o, item, u, 'Damaged', 'Arrived damaged in the box');
+  perform public.create_return_request(u, o, item, 1, 'Damaged', 'Arrived damaged in the box');
   begin
-    insert into public.return_requests(order_id, order_item_id, user_id, reason, description)
-    values (o, item, u, 'Damaged', 'Double click second request');
+    perform public.create_return_request(u, o, item, 1, 'Damaged', 'Double click second request');
     assert false, 'duplicate must be rejected';
-  exception when unique_violation then null; end;
+  exception when others then assert sqlerrm like '%exceeds purchase%', 'wrong error: ' || sqlerrm; end;
   update public.return_requests set status = 'rejected' where order_item_id = item;
-  insert into public.return_requests(order_id, order_item_id, user_id, reason, description)
-  values (o, item, u, 'Wrong item', 'New request after a rejection');
+  perform public.create_return_request(u, o, item, 1, 'Wrong item', 'New request after a rejection');
   raise notice 'PASS 10 duplicate returns blocked';
 end $$;

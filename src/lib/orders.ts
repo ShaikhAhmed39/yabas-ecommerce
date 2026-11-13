@@ -67,6 +67,7 @@ export interface ReturnRequest {
   id: string;
   order_id: string;
   order_item_id: string;
+  quantity?: number;
   status: string;
   reason: string;
   description: string;
@@ -85,7 +86,14 @@ export interface OrderItem {
   unit_price: number | string;
   quantity: number;
   return_request?: ReturnRequest | null;
+  /** every return request for this line, newest first (a line of 3 pieces can have several) */
+  return_requests?: ReturnRequest[];
 }
+
+const CLOSED_RETURN = ['rejected', 'cancelled'];
+/** pieces of this line that are still free to return */
+export const returnableQuantity = (item: Pick<OrderItem, 'quantity' | 'return_requests'>) =>
+  Math.max(item.quantity - (item.return_requests ?? []).filter((r) => !CLOSED_RETURN.includes(r.status)).reduce((n, r) => n + (r.quantity ?? 1), 0), 0);
 
 export interface Order {
   id: string;

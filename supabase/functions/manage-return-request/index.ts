@@ -26,7 +26,7 @@ const transitions: Record<Action, { from: string[]; to: string | null }> = {
   cancel: { from: ["requested", "approved"], to: "cancelled" },
 };
 
-const RETURN_COLUMNS = "id,order_id,order_item_id,user_id,status,refund_amount,admin_note,rejection_reason,pickup_scheduled_at,received_at,updated_at";
+const RETURN_COLUMNS = "id,order_id,order_item_id,quantity,user_id,status,refund_amount,admin_note,rejection_reason,pickup_scheduled_at,received_at,updated_at";
 
 const SHIPMENT_COLUMNS =
   "id,order_id,return_request_id,direction,provider_reference,attempt,awb_code,courier_name,status,raw_status,tracking_url,label_url,pickup_scheduled_at,etd,picked_up_at,delivered_at,last_event_at,error,created_at";
@@ -177,12 +177,12 @@ Deno.serve(async (req: Request) => {
     if (action === "mark_refund_pending") {
       const { data: item } = await db.from("order_items").select("unit_price,quantity").eq("id", rr.order_item_id).eq("order_id", rr.order_id).maybeSingle();
       if (!item) throw new HttpError(500, "Unable to verify the returned item.");
-      const itemTotalPaise = Math.round(Number(item.unit_price) * Number(item.quantity) * 100);
+      const itemTotalPaise = Math.round(Number(item.unit_price) * Number(rr.quantity ?? item.quantity) * 100);
       const requested = body.refund_amount === undefined || body.refund_amount === null
         ? itemTotalPaise
         : Math.round(Number(body.refund_amount) * 100);
       if (!Number.isSafeInteger(requested) || requested <= 0) throw new HttpError(400, "Provide a valid refund amount.");
-      if (requested > itemTotalPaise) throw new HttpError(400, "Refund cannot be more than the item's price.");
+      if (requested > itemTotalPaise) throw new HttpError(400, "Refund cannot be more than the price of the pieces being returned.");
       updates.refund_amount = requested / 100;
     }
 

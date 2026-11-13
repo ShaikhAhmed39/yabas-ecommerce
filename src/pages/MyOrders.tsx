@@ -17,6 +17,7 @@ import {
   paise,
   returnMessage,
   returnSteps,
+  returnableQuantity,
   returnWindowOpen,
   RETURN_WINDOW_DAYS,
   type Order,
@@ -31,7 +32,7 @@ export type { Order, OrderItem };
 
 interface MyOrdersProps {
   onBack: () => void;
-  onRequestReturn: (order: Order, item: OrderItem) => void;
+  onRequestReturn: (order: Order, item: OrderItem, maxQuantity: number) => void;
 }
 
 // Explicit column lists: customers are only granted the safe columns (no label URLs, no payment ids).
@@ -39,7 +40,7 @@ const ORDER_COLS =
   'id, order_number, user_id, total_amount, status, payment_method, payment_status, delivery_status, delivered_at, created_at, cancelled_at, cancel_reason, refunded_amount';
 const ITEM_COLS = 'id, order_id, product_id, product_title, unit_price, quantity';
 const RETURN_COLS =
-  'id, order_id, order_item_id, status, reason, description, rejection_reason, pickup_scheduled_at, refund_amount, photo_paths, created_at';
+  'id, order_id, order_item_id, quantity, status, reason, description, rejection_reason, pickup_scheduled_at, refund_amount, photo_paths, created_at';
 const SHIPMENT_COLS =
   'id, order_id, return_request_id, direction, courier_name, awb_code, status, tracking_url, pickup_scheduled_at, etd, picked_up_at, delivered_at, last_event_at, created_at';
 const EVENT_COLS = 'id, shipment_id, mapped_status, activity, location, event_time';
@@ -159,6 +160,7 @@ export function MyOrders({ onBack, onRequestReturn }: MyOrdersProps) {
               ...i,
               // newest first, so the first match is the latest request for this item
               return_request: returnRows.find((r) => r.order_id === o.id && r.order_item_id === i.id) ?? null,
+              return_requests: returnRows.filter((r) => r.order_id === o.id && r.order_item_id === i.id),
             })),
         }));
         if (myLoad === loadId.current) setOrders(built);
@@ -188,7 +190,7 @@ export function MyOrders({ onBack, onRequestReturn }: MyOrdersProps) {
           o.status !== 'cancelled' &&
           (o.payment_status === 'pending' ||
             !['delivered', 'rto_delivered'].includes(o.delivery_status) ||
-            o.items.some((i) => i.return_request && !['completed', 'rejected', 'cancelled', 'inspection_failed'].includes(i.return_request.status))),
+            o.items.some((i) => (i.return_requests ?? []).some((r) => !['completed', 'rejected', 'cancelled', 'inspection_failed'].includes(r.status)))),
       ),
     [orders],
   );
@@ -337,10 +339,8 @@ export function MyOrders({ onBack, onRequestReturn }: MyOrdersProps) {
 
                     <ul className="divide-y divide-cream-300 rounded-xl border border-cream-300">
                       {order.items.map((item) => {
-                        const rr = item.return_request;
-                        const steps = rr ? returnSteps(rr.status) : null;
-                        const retShipment = rr ? order.return_shipments.find((s) => s.return_request_id === rr.id) : undefined;
-                        const retRefund = rr ? order.refunds.find((r) => r.return_request_id === rr.id) : undefined;
+                        const requests = item.return_requests ?? [];
+                        const left = returnableQuantity(item);
                         return (
                           <li key={item.id} className="p-4">
                             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -351,27 +351,32 @@ export function MyOrders({ onBack, onRequestReturn }: MyOrdersProps) {
                                 </p>
                               </div>
                               <p className="text-sm font-semibold text-stone-800">{money(Number(item.unit_price) * item.quantity)}</p>
-                              {!rr && canReturn && (
+                              {canReturn && left > 0 && (
                                 <button
-                                  onClick={() => onRequestReturn(order, item)}
+                                  onClick={() => onRequestReturn(order, item, left)}
                                   className="rounded-lg border border-gold-400 px-4 py-2 text-sm font-medium text-gold-800 transition hover:bg-gold-50"
                                 >
-                                  Request return
+                                  {requests.length > 0 ? `Return more (${left} left)` : 'Request return'}
                                 </button>
                               )}
                             </div>
 
-                            {rr && (
-                              <div className="mt-4 space-y-3 rounded-xl border border-gold-200 bg-gold-50/40 p-4">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <p className="text-sm font-semibold text-onyx-300">Return · {label(rr.status)}</p>
-                                  <p className="text-xs text-stone-500">Requested {formatDate(rr.created_at)}</p>
+                            {requests.map((rr) => {
+                              const steps = returnSteps(rr.status);
+                              const retShipment = order.return_shipments.find((s) => s.return_request_id === rr.id);
+                              const retRefund = order.refunds.find((r) => r.return_request_id === rr.id);
+                              return (
+                                <div key={rr.id} className="mt-4 space-y-3 rounded-xl border border-gold-200 bg-gold-50/40 p-4">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-sm font-semibold text-onyx-300">Return of {rr.quantity ?? 1} {(rr.quantity ?? 1) === 1 ? 'piece' : 'pieces'} · {label(rr.status)}</p>
+                                    <p className="text-xs text-stone-500">Requested {formatDate(rr.created_at)}</p>
+                                  </div>
+                                  {steps && <Stepper steps={steps} compact ariaLabel={`Progress of return for ${item.product_title}`} />}
+                                  <p className="text-sm text-stone-700">{returnMessage(rr, retRefund, retShipment)}</p>
+                                  {retShipment?.awb_code && <ShipmentCard shipment={retShipment} title="Return pickup" />}
                                 </div>
-                                {steps && <Stepper steps={steps} compact ariaLabel={`Progress of return for ${item.product_title}`} />}
-                                <p className="text-sm text-stone-700">{returnMessage(rr, retRefund, retShipment)}</p>
-                                {retShipment?.awb_code && <ShipmentCard shipment={retShipment} title="Return pickup" />}
-                              </div>
-                            )}
+                              );
+                            })}
                           </li>
                         );
                       })}
