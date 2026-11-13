@@ -135,6 +135,62 @@ function writeLlms(products: Product[], cats: string[], cfg: StoreConfig) {
   fs.writeFileSync(path.join(DIST, 'llms-full.txt'), `${header}\n${collections}\n## Product details\n\n${full}\n${policies}`);
 }
 
+/** Google's own product category names. Anything we cannot place falls back to plain Jewelry. */
+function googleCategory(p: Product): string {
+  const t = `${p.category} ${p.sub_category ?? ''}`.toLowerCase();
+  const base = 'Apparel & Accessories > Jewelry';
+  if (/necklace|haar|mangalsutra|chain|choker|pendant/.test(t)) return `${base} > Necklaces`;
+  if (/bangle|kada|bracelet/.test(t)) return `${base} > Bracelets`;
+  if (/earring|jhumka|stud|bali/.test(t)) return `${base} > Earrings`;
+  if (/ring\b|finger/.test(t)) return `${base} > Rings`;
+  if (/anklet|payal/.test(t)) return `${base} > Anklets`;
+  if (/brooch|pin\b/.test(t)) return `${base} > Brooches & Lapel Pins`;
+  return base;
+}
+
+/** Product feed for Google Merchant Center (free Shopping listings). Fetched daily from /feeds/google-products.xml */
+function writeMerchantFeed(products: Product[], cfg: StoreConfig) {
+  const tag = (name: string, value: string | number | null | undefined) => (value === null || value === undefined || value === '' ? '' : `<g:${name}>${esc(value)}</g:${name}>`);
+  const items = products.map((p) => {
+    const imgs = productImages(p);
+    const onSale = p.original_price && p.original_price > p.selling_price;
+    const list = (onSale ? p.original_price : p.selling_price) as number;
+    // Google does not want prices, stock or offers inside the description: plain facts only
+    const kind = (p.sub_category || p.category || 'jewellery').toLowerCase();
+    const look = [p.material_type, p.polish_finish].filter((v) => v && v.trim()).join(', ');
+    const text = `${p.description?.trim() ? `${p.description.trim()} ` : ''}${p.title} is a ${kind}${look ? ` (${look})` : ''}${p.occasion_wear ? `, suited to ${p.occasion_wear.toLowerCase()} wear` : ''}. It is imitation jewellery with a gold-plated finish, not solid gold.`;
+    return `    <item>
+      ${tag('id', p.slug)}
+      <title>${esc(p.title.slice(0, 150))}</title>
+      <description>${esc(text.slice(0, 4900))}</description>
+      <link>${abs(productHref(p))}</link>
+      ${tag('image_link', imgs[0])}
+      ${imgs.slice(1, 10).map((i) => tag('additional_image_link', i)).join('')}
+      ${tag('availability', p.stock > 0 ? 'in_stock' : 'out_of_stock')}
+      ${tag('price', `${list.toFixed(2)} INR`)}
+      ${onSale ? tag('sale_price', `${Number(p.selling_price).toFixed(2)} INR`) : ''}
+      ${tag('condition', 'new')}
+      ${tag('brand', "Yaba's")}
+      ${tag('identifier_exists', 'no')}
+      ${tag('google_product_category', googleCategory(p))}
+      ${tag('product_type', [p.category, p.sub_category].filter(Boolean).join(' > '))}
+      ${tag('material', p.material_type)}
+      ${tag('shipping_weight', p.weight_grams ? `${p.weight_grams} g` : '')}
+    </item>`.replace(/\n\s*\n/g, '\n');
+  });
+  fs.mkdirSync(path.join(DIST, 'feeds'), { recursive: true });
+  fs.writeFileSync(path.join(DIST, 'feeds', 'google-products.xml'), `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+  <channel>
+    <title>${esc(BRAND)}</title>
+    <link>${SITE_URL}</link>
+    <description>Gold-plated imitation jewellery from Mira Road, Mumbai</description>
+${items.join('\n')}
+  </channel>
+</rss>
+`);
+}
+
 async function indexNow(urls: string[]) {
   if (process.env.CONTEXT !== 'production' && process.env.INDEXNOW !== '1') { console.log('[prerender] IndexNow skipped (not a production build)'); return; }
   const res = await fetch('https://api.indexnow.org/indexnow', {
@@ -164,7 +220,8 @@ async function main() {
   // lets the 30-minute checker (GitHub Action) know which shop changes this build already contains
   fs.writeFileSync(path.join(DIST, 'build-info.json'), JSON.stringify({ built_at: new Date().toISOString(), latest_product_update: products.reduce((m, p) => (p.updated_at > m ? p.updated_at : m), ''), products: products.length }));
   writeLlms(products, cats, cfg);
-  console.log(`[prerender] wrote ${pages.length} pages, sitemap.xml, llms.txt, llms-full.txt`);
+  writeMerchantFeed(products, cfg);
+  console.log(`[prerender] wrote ${pages.length} pages, sitemap.xml, llms.txt, llms-full.txt, feeds/google-products.xml`);
   await indexNow(pages.map((p) => abs(p.urlPath)));
 }
 
