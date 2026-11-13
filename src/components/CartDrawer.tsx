@@ -59,7 +59,7 @@ export function CartDrawer({ onCheckout }: CartDrawerProps) {
               {items.map((item) => (
                 <li key={item.product.id} className="flex gap-4 border-b border-gold-400/20 pb-5 last:border-0">
                   <div className="jewel-panel h-24 w-[76px] flex-shrink-0 overflow-hidden rounded-t-full border border-gold-500">
-                    <img src={item.product.image_url} alt="" className="h-full w-full object-cover" />
+                    <img src={item.product.image_url} alt={item.product.title} width={80} height={80} loading="lazy" className="h-full w-full object-cover" />
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="flex items-start justify-between gap-2">

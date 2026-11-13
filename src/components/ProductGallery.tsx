@@ -32,7 +32,7 @@ export function ProductGallery({ images, title }: { images: string[]; title: str
           {list.map((src, i) => (
             <button key={src + i} role="tab" aria-selected={i === active} onClick={() => jump(i)} aria-label={`Photo ${i + 1}`}
               className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded border-2 jewel-panel lg:h-[92px] lg:w-[92px] ${i === active ? 'border-gold-500' : 'border-gold-500/25 opacity-75 hover:opacity-100'}`}>
-              <img src={src} alt="" className="h-full w-full object-contain" loading="lazy" />
+              <img src={src} alt="" width={800} height={1000} className="h-full w-full object-contain" loading="lazy" decoding="async" />
             </button>
           ))}
         </div>
@@ -49,7 +49,7 @@ export function ProductGallery({ images, title }: { images: string[]; title: str
                 }}
                 onPointerLeave={() => setLens(null)}>
                 <button type="button" onClick={() => setViewer(i)} className="absolute inset-0 cursor-zoom-in" aria-label={`Open photo ${i + 1} to zoom`}>
-                  <img src={src} alt={`${title}, photo ${i + 1}`} loading={i === 0 ? 'eager' : 'lazy'} draggable={false} className="h-full w-full object-contain" />
+                  <img src={src} alt={`${title}, photo ${i + 1}`} width={800} height={1000} loading={i === 0 ? 'eager' : 'lazy'} {...{ fetchpriority: i === 0 ? 'high' : 'auto' }} decoding={i === 0 ? 'sync' : 'async'} draggable={false} className="h-full w-full object-contain" />
                 </button>
                 {lens && i === active && (
                   <div aria-hidden className="pointer-events-none absolute hidden border border-white/80 bg-white/20 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)] lg:block"

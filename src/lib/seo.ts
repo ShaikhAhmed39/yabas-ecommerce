@@ -13,6 +13,9 @@ export interface Seo {
   jsonLd?: Json[];
 }
 
+export const seoTitle = (title: string) => (title.includes('Yaba') ? title : `${title} | ${BRAND}`);
+export const seoRobots = (noindex?: boolean) => (noindex ? 'noindex, follow' : 'index, follow, max-image-preview:large');
+
 function meta(attr: 'name' | 'property', key: string, value: string | undefined) {
   let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
   if (!value) { el?.remove(); return; }
@@ -25,10 +28,10 @@ export function useSeo(seo: Seo | null) {
   const key = seo ? JSON.stringify(seo) : '';
   useEffect(() => {
     if (!seo) return;
-    const full = seo.title.includes('Yaba') ? seo.title : `${seo.title} | ${BRAND}`;
+    const full = seoTitle(seo.title);
     document.title = full;
     meta('name', 'description', seo.description);
-    meta('name', 'robots', seo.noindex ? 'noindex, follow' : 'index, follow, max-image-preview:large');
+    meta('name', 'robots', seoRobots(seo.noindex));
     const url = seo.path ? `${SITE_URL}${seo.path}` : undefined;
     let link = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (!url) link?.remove();
