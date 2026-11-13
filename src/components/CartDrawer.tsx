@@ -1,3 +1,4 @@
+import { go, productHref } from '@/lib/router';
 import { useEffect } from 'react';
 import { X, Plus, Minus, Trash2, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
@@ -48,7 +49,7 @@ export function CartDrawer({ onCheckout }: CartDrawerProps) {
             </div>
             <p className="mt-6 font-display text-xl text-onyx-300">Your bag is empty</p>
             <p className="mt-2 text-onyx-100">Pick a piece from the collection and it will wait for you here.</p>
-            <button onClick={() => { setCartOpen(false); window.location.hash = '#/shop'; }} className="mt-6 min-h-11 rounded bg-onyx-300 px-8 text-sm font-medium text-gold-100 hover:bg-onyx-200 transition-colors">
+            <button onClick={() => { setCartOpen(false); go('/shop'); }} className="mt-6 min-h-11 rounded bg-onyx-300 px-8 text-sm font-medium text-gold-100 hover:bg-onyx-200 transition-colors">
               Browse the collection
             </button>
           </div>
@@ -63,7 +64,7 @@ export function CartDrawer({ onCheckout }: CartDrawerProps) {
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <h3 className="text-[15px] leading-snug text-ink line-clamp-2"><a href={`#/product/${item.product.id}`} onClick={() => setCartOpen(false)}>{item.product.title}</a></h3>
+                        <h3 className="text-[15px] leading-snug text-ink line-clamp-2"><a href={productHref(item.product)} onClick={() => setCartOpen(false)}>{item.product.title}</a></h3>
                         <p className="mt-0.5 text-sm text-onyx-100">{formatINR(item.product.selling_price)} each</p>
                       </div>
                       <button onClick={() => removeFromCart(item.product.id)} aria-label={`Remove ${item.product.title}`} className="p-1.5 text-onyx-100 hover:text-accent-wine transition-colors">

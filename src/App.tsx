@@ -54,7 +54,7 @@ function Shell() {
           <p className="mt-2 text-ink/70">{user && !isGuest ? 'This account does not have admin access.' : 'Please sign in with the owner account.'}</p>
           <div className="mt-6 flex justify-center gap-3">
             {(!user || isGuest) && <button onClick={() => signIn('Admin sign in')} className="min-h-11 rounded bg-onyx-300 px-6 font-display text-xs tracking-[0.12em] text-gold-200">SIGN IN</button>}
-            <a href="#/" className="inline-flex min-h-11 items-center rounded border-2 border-onyx-300 px-6 font-display text-xs tracking-[0.12em] text-onyx-300">BACK TO STORE</a></div></div>
+            <a href="/" className="inline-flex min-h-11 items-center rounded border-2 border-onyx-300 px-6 font-display text-xs tracking-[0.12em] text-onyx-300">BACK TO STORE</a></div></div>
         <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} title={authTitle} />
       </div>
     );
@@ -81,7 +81,7 @@ function Shell() {
         <div className="mx-auto max-w-md px-6 py-20 text-center"><h1 className="font-display text-2xl text-onyx-300">Your orders</h1>
           <p className="mt-2 text-ink/70">Sign in to see your orders, start a return and follow every parcel.</p>
           <button onClick={() => signIn('Sign in to view your orders')} className="mt-6 min-h-12 rounded bg-onyx-300 px-8 font-display text-sm tracking-[0.12em] text-gold-200">SIGN IN</button>
-          <p className="mt-4 text-sm text-ink/70">Ordered as a guest? <a href="#/track" className="text-onyx-300 underline underline-offset-4">Track it with your order number</a>.</p></div>
+          <p className="mt-4 text-sm text-ink/70">Ordered as a guest? <a href="/track" className="text-onyx-300 underline underline-offset-4">Track it with your order number</a>.</p></div>
       );
       break;
     case 'return':

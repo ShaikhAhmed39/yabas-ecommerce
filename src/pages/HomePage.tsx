@@ -1,3 +1,4 @@
+import { productHref } from '@/lib/router';
 import { useMemo } from 'react';
 import { Gift, MessageCircle, PackageSearch, Gem, ShieldCheck, RotateCcw, Truck, Lock, MapPin, Phone } from 'lucide-react';
 import { Hero } from '@/components/Hero';
@@ -31,7 +32,7 @@ export function HomePage() {
   const wa = whatsappLink("Hello Yaba's, I would like help choosing a piece.") ?? `https://wa.me/91${SHOP_DEFAULTS.whatsapp_number}`;
 
   const quick = [
-    { icon: PackageSearch, label: 'Track order', href: '#/track' },
+    { icon: PackageSearch, label: 'Track order', href: '/track' },
     { icon: MessageCircle, label: 'WhatsApp us', href: wa, external: true },
     { icon: Gift, label: 'Gift a piece', href: shopHref('All', 'gift') },
     { icon: Gem, label: 'Shop all', href: shopHref() },
@@ -90,7 +91,7 @@ export function HomePage() {
           <Section>
             <div className="mx-auto grid max-w-3xl grid-cols-2 gap-3 sm:gap-6">
               {trending.map((p) => (
-                <a key={p.id} href={`#/product/${p.id}`}
+                <a key={p.id} href={productHref(p)}
                   className={`group relative block aspect-[3/4.3] overflow-hidden rounded-t-full border border-gold-500/60 jewel-panel`}>
                   <img src={p.image_url || PLACEHOLDER_IMG} alt={p.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
                   <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-5 pt-14 text-center">

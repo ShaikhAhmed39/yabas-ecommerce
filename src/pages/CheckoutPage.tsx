@@ -256,7 +256,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
   const topBar = (
     <header className="jaali-teal">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <a href="#/" aria-label="Yaba's, home" className="flex items-center gap-3">
+        <a href="/" aria-label="Yaba's, home" className="flex items-center gap-3">
           <img src={LOGO_PATH} alt="" className="hidden h-9 w-9 rounded-full ring-1 ring-gold-400/70 sm:block" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           <span className="font-display text-2xl tracking-[0.12em] text-gold-200">YABA&apos;S</span>
         </a>
@@ -287,7 +287,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
             </div>
           )}
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <a href="#/orders" className="inline-flex min-h-12 items-center justify-center gap-2 bg-onyx-300 text-[11px] font-medium uppercase tracking-[0.2em] text-white"><Truck className="h-4 w-4" />Track this order</a>
+            <a href="/orders" className="inline-flex min-h-12 items-center justify-center gap-2 bg-onyx-300 text-[11px] font-medium uppercase tracking-[0.2em] text-white"><Truck className="h-4 w-4" />Track this order</a>
             <a href={shopHref()} className="inline-flex min-h-12 items-center justify-center rounded border-2 border-onyx-300 font-display text-xs tracking-[0.12em] text-onyx-300">CONTINUE SHOPPING</a>
           </div>
         </main>

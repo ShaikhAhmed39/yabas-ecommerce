@@ -4,7 +4,7 @@ import { ProductCard } from '@/components/ProductCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { Section, SectionHead } from '@/components/ornaments';
 import { useProducts } from '@/context/ProductsContext';
-import { go, shopHref } from '@/lib/router';
+import { go, shopHref, slugify } from '@/lib/router';
 import type { Product } from '@/types';
 
 const SORTS = [
@@ -24,7 +24,7 @@ const BANDS = [
 const haystack = (p: Product) =>
   [p.title, p.category, p.sub_category, p.occasion_wear, p.material_type, p.polish_finish, p.description].join(' ').toLowerCase();
 
-export function ShopPage({ category, q }: { category: string; q: string }) {
+export function ShopPage({ category: rawCategory, q }: { category: string; q: string }) {
   const { products, loading, error, refetch } = useProducts();
   const [sort, setSort] = useState<(typeof SORTS)[number]['v']>('new');
   const [band, setBand] = useState<(typeof BANDS)[number]['v']>('any');
@@ -33,6 +33,8 @@ export function ShopPage({ category, q }: { category: string; q: string }) {
   const [draft, setDraft] = useState(q);
 
   const categories = useMemo(() => ['All', ...new Set(products.map((p) => p.category).filter(Boolean))], [products]);
+  // the address holds a slug ("necklace"); find the real category name it stands for
+  const category = useMemo(() => categories.find((c) => c !== 'All' && slugify(c) === slugify(rawCategory)) ?? 'All', [categories, rawCategory]);
 
   const list = useMemo(() => {
     const terms = q.toLowerCase().split(/\s+/).filter(Boolean);

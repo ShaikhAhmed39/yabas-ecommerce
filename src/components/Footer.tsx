@@ -40,9 +40,9 @@ export function Footer() {
             <h4 className="mb-4 font-display text-base tracking-[0.12em] text-gold-200">SHOP</h4>
             <ul className="space-y-1 text-[15px]">
               <li><a className={`${link} inline-block py-1.5`} href={shopHref()}>All jewellery</a></li>
-              <li><a className={`${link} inline-block py-1.5`} href="#/track">Track an order</a></li>
-              <li><a className={`${link} inline-block py-1.5`} href="#/orders">My orders &amp; returns</a></li>
-              <li><a className={`${link} inline-block py-1.5`} href="#/wishlist">Wishlist</a></li>
+              <li><a className={`${link} inline-block py-1.5`} href="/track">Track an order</a></li>
+              <li><a className={`${link} inline-block py-1.5`} href="/orders">My orders &amp; returns</a></li>
+              <li><a className={`${link} inline-block py-1.5`} href="/wishlist">Wishlist</a></li>
               <li><a className={`${link} inline-block py-1.5`} href="#about">Our story</a></li>
             </ul>
           </nav>
@@ -72,7 +72,7 @@ export function Footer() {
             <p>© {new Date().getFullYear()} {config.legal_name || "Yaba's Imitation & Jewellery"}{config.gstin ? ` · GSTIN ${config.gstin}` : ''}</p>
             <div className="flex items-center gap-4">
               <span>Secured by Razorpay</span>
-              {isAdmin && <a href="#/admin" className="rounded border border-gold-400/40 px-3 py-2 text-gold-300 hover:text-gold-100">Admin panel</a>}
+              {isAdmin && <a href="/admin" className="rounded border border-gold-400/40 px-3 py-2 text-gold-300 hover:text-gold-100">Admin panel</a>}
             </div>
           </div>
         </div>

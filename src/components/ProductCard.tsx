@@ -1,3 +1,4 @@
+import { productHref } from '@/lib/router';
 import { Heart, ShoppingBag } from 'lucide-react';
 import type { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
@@ -19,7 +20,7 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
   return (
     <article className="relative flex flex-col">
       <div className="relative overflow-hidden jewel-panel">
-        <a href={`#/product/${product.id}`} aria-label={`View ${product.title}`} className="block aspect-[4/5] w-full">
+        <a href={productHref(product)} aria-label={`View ${product.title}`} className="block aspect-[4/5] w-full">
           <img
             src={product.image_url || PLACEHOLDER_IMG}
             alt={product.title}
@@ -47,7 +48,7 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
       <div className="flex flex-1 flex-col px-0.5 pb-3 pt-3">
         <p className="text-[10.5px] uppercase tracking-[0.18em] text-gold-600">{product.category}</p>
         <h3 className="mt-1 line-clamp-2 min-h-[2.6rem] font-display text-[18px] leading-[1.2] text-ink sm:text-[20px]">
-          <a href={`#/product/${product.id}`}>{product.title}</a>
+          <a href={productHref(product)}>{product.title}</a>
         </h3>
         <p className="mt-1 flex items-baseline gap-2">
           <span className="text-[15px] font-medium text-ink">{formatINR(product.selling_price)}</span>
