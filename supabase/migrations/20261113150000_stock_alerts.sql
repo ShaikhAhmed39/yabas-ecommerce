@@ -45,4 +45,5 @@ end $$;
 
 revoke all on function public.request_stock_alert(uuid, text), public.admin_stock_alerts(), public.admin_clear_stock_alerts(uuid) from public;
 grant execute on function public.request_stock_alert(uuid, text) to anon, authenticated;
+revoke execute on function public.admin_stock_alerts(), public.admin_clear_stock_alerts(uuid) from anon;
 grant execute on function public.admin_stock_alerts(), public.admin_clear_stock_alerts(uuid) to authenticated;
