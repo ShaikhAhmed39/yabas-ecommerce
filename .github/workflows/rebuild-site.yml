@@ -1,0 +1,48 @@
+# Keeps the search-engine pages (HTML, sitemap.xml, llms.txt) in step with the shop.
+# Every 30 minutes: if a product changed since the live site was last built, ask Netlify to rebuild.
+# Needs 3 repository secrets: NETLIFY_BUILD_HOOK, SUPABASE_URL, SUPABASE_ANON_KEY.
+name: Rebuild site when products change
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Rebuild even if nothing changed'
+        type: boolean
+        default: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Compare shop with the live build
+        env:
+          HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+          SB_URL: ${{ secrets.SUPABASE_URL }}
+          SB_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOOK:-}" ] || [ -z "${SB_URL:-}" ] || [ -z "${SB_KEY:-}" ]; then echo "Secrets not added yet: nothing to do."; exit 0; fi
+          latest=$(curl -fsS "$SB_URL/rest/v1/products?select=updated_at&order=updated_at.desc&limit=1" -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['updated_at'] if d else '')")
+          count=$(curl -fsS "$SB_URL/rest/v1/products?select=id" -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY" -H "Prefer: count=exact" -H "Range: 0-0" -D - -o /dev/null | tr -d '\r' | awk -F'/' 'tolower($1) ~ /content-range/ {print $2}')
+          echo "Shop: latest change $latest, $count products"
+          if ! info=$(curl -fsS "https://yabasjewellers.com/build-info.json"); then echo "No build-info.json on the live site yet: skipping."; exit 0; fi
+          echo "Live build: $info"
+          python3 - "$latest" "$count" "$FORCE" "$info" > decision.txt <<'PY'
+          import sys, json
+          from datetime import datetime, timezone
+          latest, count, force, info = sys.argv[1:5]
+          info = json.loads(info)
+          p = lambda s: datetime.fromisoformat(s.replace('Z', '+00:00'))
+          age_min = (datetime.now(timezone.utc) - p(info['built_at'])).total_seconds() / 60
+          changed = (latest and p(latest) > p(info['latest_product_update'])) or (count.isdigit() and int(count) != info['products'])
+          if force == 'true': print('rebuild')
+          elif age_min < 20: print('wait: last build was only %.0f minutes ago' % age_min)
+          elif changed: print('rebuild')
+          else: print('nothing changed')
+          PY
+          cat decision.txt
+          if grep -q '^rebuild' decision.txt; then curl -fsS -X POST -d '{}' "$HOOK" && echo "Netlify rebuild requested."; fi

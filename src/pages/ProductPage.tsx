@@ -15,7 +15,7 @@ import { productImages } from '@/utils/images';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { NotifyMe } from '@/components/NotifyMe';
 import { ProductSchema } from '@/components/ProductSchema';
-import { productSpecs } from '@/lib/schema';
+import { productSpecs, productSummary } from '@/lib/schema';
 import { useSeo } from '@/lib/seo';
 
 export function ProductPage({ id }: { id: string }) {
@@ -116,6 +116,7 @@ export function ProductPage({ id }: { id: string }) {
               {out ? 'Currently sold out' : product.stock <= 5 ? `Hurry, only ${product.stock} left` : 'In stock'}
             </p>
 
+            <p className="mt-4 rounded-md bg-cream-200/60 p-3 text-[14px] leading-6 text-ink/85"><b className="font-medium text-onyx-300">Quick summary: </b>{productSummary(product, config)}</p>
             {out && <NotifyMe productId={product.id} title={product.title} />}
             {!out && (
               <div className="mt-5 flex items-center gap-4">

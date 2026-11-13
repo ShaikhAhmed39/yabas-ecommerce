@@ -52,7 +52,8 @@ export function productSchema(p: Product, cfg: StoreConfig): Json {
       transitTime: transit ? { '@type': 'QuantitativeValue', minValue: transit.min, maxValue: transit.max, unitCode: 'DAY' } : undefined,
     }) : undefined,
   });
-  const props = productSpecs(p).map(([name, value]) => ({ '@type': 'PropertyValue', name, value }));
+  // The owner's "Material" box may just say "Gold"; the plain-words type below stops that being read as solid gold.
+  const props = [...productSpecs(p), ['Product type', 'Imitation jewellery, gold plated (not solid gold)']].map(([name, value]) => ({ '@type': 'PropertyValue', name, value }));
   return clean({
     '@context': CTX, '@type': 'Product', '@id': `${url}#product`, url,
     name: p.title,
@@ -61,7 +62,6 @@ export function productSchema(p: Product, cfg: StoreConfig): Json {
     sku: p.slug || p.id,
     brand: { '@type': 'Brand', name: "Yaba's" },
     category: [p.category, p.sub_category].filter(Boolean).join(' > '),
-    material: p.material_type,
     additionalProperty: props,
     offers: clean({
       '@type': 'Offer', url, priceCurrency: 'INR', price: Number(p.selling_price).toFixed(2),
@@ -78,6 +78,17 @@ export function productSchema(p: Product, cfg: StoreConfig): Json {
     }),
     // aggregateRating is intentionally absent: it is added only when real customer reviews exist.
   });
+}
+
+/** A 40-60 word direct answer: what it is, who it suits, price and availability. Shown on the page, in the static HTML and in llms.txt. */
+export function productSummary(p: Product, cfg: StoreConfig): string {
+  const kind = (p.sub_category || p.category || 'jewellery').toLowerCase();
+  const look = [p.material_type, p.polish_finish].filter((v) => v && v.trim()).join(', ');
+  const occasion = p.occasion_wear ? ` suited to ${p.occasion_wear.toLowerCase()} wear` : '';
+  const off = p.original_price && p.original_price > p.selling_price ? `, ${Math.round(100 - (p.selling_price / p.original_price) * 100)}% below the ₹${Math.round(p.original_price).toLocaleString('en-IN')} list price` : '';
+  const stock = p.stock > 0 ? 'In stock' : 'Currently sold out; use Notify me to hear when it returns';
+  const delivery = cfg.delivery_estimate ? ` Delivered across India in ${cfg.delivery_estimate} working days.` : ' Delivered across India.';
+  return `${p.title} is a ${kind}${look ? ` (${look})` : ''}${occasion}. It is imitation jewellery with a gold-plated finish, not solid gold. Price ₹${Math.round(p.selling_price).toLocaleString('en-IN')}${off}. ${stock}.${delivery} ${RETURN_WINDOW_DAYS}-day returns.`;
 }
 
 export function breadcrumbSchema(items: { name: string; path: string }[]): Json {

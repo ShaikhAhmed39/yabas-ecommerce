@@ -1,0 +1,23 @@
+# Yaba's Imitation & Jewellery: https://yabasjewellers.com
+# Search engines and AI search assistants are welcome on the shop pages.
+User-agent: *
+Allow: /
+Disallow: /checkout
+Disallow: /track
+Disallow: /wishlist
+Disallow: /orders
+Disallow: /my-orders
+Disallow: /return
+Disallow: /return-request
+Disallow: /admin
+# filter / sort / search addresses only repeat the same pieces
+Disallow: /*?sort=
+Disallow: /*?price=
+Disallow: /*?q=
+Disallow: /*?cat=
+Disallow: /*&sort=
+
+# Googlebot, Bingbot, OAI-SearchBot, ChatGPT-User, PerplexityBot, ClaudeBot and Claude-SearchBot all follow the rules above (allowed on shop pages).
+# Do not add per-bot groups: a bot with its own group ignores the '*' rules, which would re-open /checkout and /admin.
+
+Sitemap: https://yabasjewellers.com/sitemap.xml

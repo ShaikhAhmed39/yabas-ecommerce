@@ -83,7 +83,7 @@ export function HomePage() {
             {categories.map(([name, img], i) => (
               <a key={name} href={shopHref(name)} className="w-[112px] flex-shrink-0 text-center sm:w-36">
                 <span className={`mb-3 block aspect-[3/4] overflow-hidden rounded-t-full border border-gold-500/60 ${i % 2 ? 'jewel-panel-maroon' : 'jewel-panel'}`}>
-                  <img src={img || PLACEHOLDER_IMG} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  <img src={img || PLACEHOLDER_IMG} alt="" width={400} height={500} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 </span>
                 <span className="font-display text-[19px] text-ink">{name}</span>
               </a>
@@ -101,7 +101,7 @@ export function HomePage() {
               {trending.map((p) => (
                 <a key={p.id} href={productHref(p)}
                   className={`group relative block aspect-[3/4.3] overflow-hidden rounded-t-full border border-gold-500/60 jewel-panel`}>
-                  <img src={p.image_url || PLACEHOLDER_IMG} alt={p.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <img src={p.image_url || PLACEHOLDER_IMG} alt={p.title} width={600} height={750} loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
                   <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-5 pt-14 text-center">
                     <span className="block line-clamp-1 font-display text-sm text-gold-100 sm:text-base">{p.title}</span>
                     <span className="mt-2 inline-block border-b border-white pb-0.5 text-[11px] font-medium uppercase tracking-[0.2em] text-white">Shop now</span>

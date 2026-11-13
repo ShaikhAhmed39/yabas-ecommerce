@@ -24,7 +24,10 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
           <img
             src={product.image_url || PLACEHOLDER_IMG}
             alt={product.title}
+            width={400}
+            height={500}
             loading="lazy"
+            decoding="async"
             className={`h-full w-full object-cover transition-transform duration-700 hover:scale-105 ${out ? 'opacity-50 grayscale' : ''}`}
           />
         </a>
