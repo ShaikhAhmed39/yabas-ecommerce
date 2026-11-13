@@ -1,6 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ALLOWED_ORIGINS = new Set([
+  "https://yabasjewellers.com",
+  "https://www.yabasjewellers.com",
   "https://yabas.netlify.app",
   "http://localhost:5173",
   "http://localhost:4173",
