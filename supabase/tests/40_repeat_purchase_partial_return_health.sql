@@ -70,16 +70,12 @@ begin
   update public.orders set delivery_status = 'delivered', delivered_at = now() where id = o;
   select array_agg(id order by id) into ids from public.order_items where order_id = o;
 
-  insert into public.return_requests(order_id, order_item_id, user_id, reason, description, status)
-  values (o, ids[3], u, 'Wrong size', 'The necklace is too short for me.', 'requested');
-  -- the same item cannot be returned twice, but any of the other 9 still can
+  perform public.create_return_request(u, o, ids[3], 1, 'Wrong size', 'The necklace is too short for me.');
   begin
-    insert into public.return_requests(order_id, order_item_id, user_id, reason, description, status)
-    values (o, ids[3], u, 'Wrong size', 'The necklace is too short for me.', 'requested');
-    assert false, 'duplicate return for the same item must be blocked';
-  exception when unique_violation then null; end;
-  insert into public.return_requests(order_id, order_item_id, user_id, reason, description, status)
-  values (o, ids[7], u, 'Colour', 'The colour is different from the photo.', 'requested');
+    perform public.create_return_request(u, o, ids[3], 1, 'Wrong size', 'The necklace is too short for me.');
+    assert false, 'the same single piece cannot be returned twice';
+  exception when others then assert sqlerrm like '%exceeds purchase%', 'wrong error: ' || sqlerrm; end;
+  perform public.create_return_request(u, o, ids[7], 1, 'Colour', 'The colour is different from the photo.');
   assert (select count(*) from public.return_requests where order_id = o) = 2, 'two separate returns on one order';
   raise notice 'PASS 2 return one item out of ten';
 end $$;
@@ -98,4 +94,33 @@ begin
   assert h ? 'paid_not_shipped_48h' and h ? 'refunds_failed' and h ? 'timer_installed', 'expected fields present';
   perform t4.as_service();
   raise notice 'PASS 3 admin health check';
+end $$;
+
+-- 4. bought 3 pieces of one necklace: return 1, then 1 more, but never more than 3 in total ------------------------
+do $$
+declare u uuid := t4.mk_user(); p uuid := t4.mk_product(10, 800); o uuid; item uuid; r jsonb;
+begin
+  o := t4.mk_order(u, jsonb_build_array(jsonb_build_object('product_id', p, 'quantity', 3)));
+  perform t4.pay(o, 'pay_R4');
+  update public.orders set delivery_status = 'delivered', delivered_at = now() where id = o;
+  select id into item from public.order_items where order_id = o;
+
+  r := public.create_return_request(u, o, item, 1, 'Wrong size', 'One of the three is too short.');
+  assert (r ->> 'quantity')::int = 1, 'first return is for 1 piece';
+  r := public.create_return_request(u, o, item, 1, 'Wrong size', 'Another one is also too short.');
+  begin
+    perform public.create_return_request(u, o, item, 2, 'Colour', 'Only one piece is left to return.');
+    assert false, 'cannot return 2 more when only 1 is left';
+  exception when others then assert sqlerrm like '%exceeds purchase%', 'wrong error: ' || sqlerrm; end;
+  perform public.create_return_request(u, o, item, 1, 'Colour', 'The last one has a different colour.');
+  begin
+    perform public.create_return_request(u, o, item, 1, 'Other', 'A fourth piece that was never bought.');
+    assert false, 'cannot return more than bought';
+  exception when others then assert sqlerrm like '%exceeds purchase%', 'wrong error: ' || sqlerrm; end;
+
+  -- a rejected request gives its pieces back
+  update public.return_requests set status = 'rejected' where order_item_id = item and id = (select id from public.return_requests where order_item_id = item order by created_at limit 1);
+  perform public.create_return_request(u, o, item, 1, 'Other', 'Try again after a rejection.');
+  assert (select coalesce(sum(quantity),0) from public.return_requests where order_item_id = item and status not in ('rejected','cancelled')) = 3, 'three pieces in active returns';
+  raise notice 'PASS 4 partial quantity returns (1, 1, 1 of 3)';
 end $$;

@@ -10,7 +10,7 @@ const SHIPMENT_COLUMNS =
   "id,order_id,return_request_id,direction,provider_reference,attempt,awb_code,courier_name,status,raw_status,tracking_url,label_url,pickup_scheduled_at,etd,picked_up_at,delivered_at,last_event_at,error,created_at";
 const REFUND_COLUMNS = "id,order_id,return_request_id,amount_paise,status,reason,error,razorpay_refund_id,created_at,processed_at";
 const RETURN_COLUMNS =
-  "id,order_id,order_item_id,reason,description,status,admin_note,rejection_reason,pickup_scheduled_at,received_at,refund_amount,refund_initiated_at,created_at,updated_at";
+  "id,order_id,order_item_id,quantity,reason,description,status,admin_note,rejection_reason,pickup_scheduled_at,received_at,refund_amount,refund_initiated_at,created_at,updated_at";
 
 const VIEWS = ["all", "unpaid", "to_ship", "in_transit", "delivered", "attention", "cancelled", "returns"] as const;
 const CLOSED_RETURN = "(completed,rejected,cancelled)";

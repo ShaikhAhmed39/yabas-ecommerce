@@ -60,7 +60,7 @@ interface OrderContext {
   subTotal: number;
 }
 
-async function loadContext(db: Db, orderId: string, onlyItemId?: string | null): Promise<OrderContext> {
+async function loadContext(db: Db, orderId: string, onlyItemId?: string | null, onlyQty?: number | null): Promise<OrderContext> {
   const { data: order, error } = await db.from("orders").select("*").eq("id", orderId).maybeSingle();
   if (error || !order) throw new HttpError(404, "Order not found.");
   const { data: rows, error: itemErr } = await db
@@ -73,7 +73,8 @@ async function loadContext(db: Db, orderId: string, onlyItemId?: string | null):
     const { data: prods } = await db.from("products").select("id,weight_grams").in("id", productIds);
     for (const p of prods ?? []) weights.set(p.id, Number(p.weight_grams) || 100);
   }
-  const selected = onlyItemId ? rows.filter((r) => r.id === onlyItemId) : rows;
+  const selected = (onlyItemId ? rows.filter((r) => r.id === onlyItemId) : rows)
+    .map((r) => (onlyItemId && onlyQty ? { ...r, quantity: Math.min(Number(onlyQty), Number(r.quantity)) } : r));
   if (!selected.length) throw new HttpError(404, "Item not found on this order.");
 
   const hsn = env("SHIPPING_HSN_CODE") ?? "7117";
@@ -151,11 +152,13 @@ export async function bookShipment(db: Db, provider: ShippingProvider, opts: Boo
   const isReturn = opts.direction === "return";
 
   let returnItemId: string | null = null;
+  let returnQty: number | null = null;
   if (isReturn) {
-    const { data: rr } = await db.from("return_requests").select("order_item_id").eq("id", opts.returnRequestId!).single();
+    const { data: rr } = await db.from("return_requests").select("order_item_id,quantity").eq("id", opts.returnRequestId!).single();
     returnItemId = rr?.order_item_id ?? null;
+    returnQty = rr?.quantity ?? null;
   }
-  const ctx = await loadContext(db, opts.orderId, returnItemId);
+  const ctx = await loadContext(db, opts.orderId, returnItemId, returnQty);
 
   try {
     if (!ship.provider_order_id || !ship.provider_shipment_id) {
