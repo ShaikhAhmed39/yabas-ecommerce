@@ -13,6 +13,10 @@ import { POLICY_LINKS } from '@/lib/policies';
 import { formatINR, calculateDiscount } from '@/utils/format';
 import { productImages } from '@/utils/images';
 import { SkeletonCard } from '@/components/SkeletonCard';
+import { NotifyMe } from '@/components/NotifyMe';
+import { ProductSchema } from '@/components/ProductSchema';
+import { productSpecs } from '@/lib/schema';
+import { useSeo } from '@/lib/seo';
 
 export function ProductPage({ id }: { id: string }) {
   const { products, loading } = useProducts();
@@ -28,10 +32,16 @@ export function ProductPage({ id }: { id: string }) {
   // an old link (by id) is quietly moved to the clean address
   useEffect(() => { if (product?.slug && id !== product.slug) go(productHref(product), { replace: true }); }, [product, id]);
   useEffect(() => { setQty(1); window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); }, [id]);
-  useEffect(() => { if (product) document.title = `${product.title} | Yaba's Imitation & Jewellery`; return () => { document.title = "Yaba's Imitation & Jewellery"; }; }, [product]);
+  // a missing piece must not be indexed as a page
+  useSeo(!product && !loading ? { title: 'Piece not found', noindex: true } : null);
 
   const related = useMemo(
-    () => (product ? products.filter((p) => p.id !== product.id && p.category === product.category && p.stock > 0).slice(0, 4) : []),
+    () => {
+      if (!product) return [];
+      const same = products.filter((p) => p.id !== product.id && p.category === product.category && p.stock > 0);
+      const others = products.filter((p) => p.id !== product.id && p.category !== product.category && p.stock > 0);
+      return [...same, ...others].slice(0, 4);
+    },
     [products, product],
   );
 
@@ -74,15 +84,13 @@ export function ProductPage({ id }: { id: string }) {
     } catch { /* cancelled */ }
   };
 
-  const specs = [
-    ['Material', product.material_type], ['Finish', product.polish_finish], ['Size', product.dimensions],
-    ['Occasion', product.occasion_wear], ['Type', product.sub_category || product.category],
-  ].filter(([, v]) => v);
+  const specs = productSpecs(product);
 
   const detail = 'border-t border-gold-500/30 py-4';
 
   return (
-    <div className="pb-28 lg:pb-12">
+    <article className="pb-28 lg:pb-12">
+      <ProductSchema product={product} />
       <Section className="pt-4 lg:max-w-[1440px]">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-[13px] text-ink/65">
           <a href="/" className="hover:text-onyx-300">Home</a><ChevronRight className="h-3.5 w-3.5" aria-hidden />
@@ -108,6 +116,7 @@ export function ProductPage({ id }: { id: string }) {
               {out ? 'Currently sold out' : product.stock <= 5 ? `Hurry, only ${product.stock} left` : 'In stock'}
             </p>
 
+            {out && <NotifyMe productId={product.id} title={product.title} />}
             {!out && (
               <div className="mt-5 flex items-center gap-4">
                 <span className="text-sm text-ink/70">Quantity</span>
@@ -161,12 +170,15 @@ export function ProductPage({ id }: { id: string }) {
               {product.description && (
                 <details open className={detail}><summary className="cursor-pointer font-display text-sm tracking-[0.1em] text-onyx-300">DESCRIPTION</summary><p className="mt-3 whitespace-pre-line text-[15px] leading-7 text-ink/85">{product.description}</p></details>
               )}
-              {specs.length > 0 && (
-                <details open className={detail}><summary className="cursor-pointer font-display text-sm tracking-[0.1em] text-onyx-300">DETAILS</summary>
-                  <dl className="mt-3 grid grid-cols-2 gap-2">{specs.map(([k, v]) => <div key={k} className="rounded bg-cream-200/60 px-3 py-2"><dt className="text-xs text-ink/60">{k}</dt><dd className="text-sm font-medium text-ink">{v}</dd></div>)}</dl></details>
-              )}
-              <details className={detail}><summary className="cursor-pointer font-display text-sm tracking-[0.1em] text-onyx-300">CARE &amp; DISCLOSURE</summary>
-                <p className="mt-3 text-[15px] leading-7 text-ink/85">This is imitation (gold-plated) jewellery. Keep it dry, store it apart from other pieces and avoid perfume and water. <a href={POLICY_LINKS.care.href} className="text-onyx-300 underline underline-offset-4">Read the full care guide</a>.</p></details>
+              <details open className={detail}><summary className="cursor-pointer font-display text-sm tracking-[0.1em] text-onyx-300">SPECIFICATIONS &amp; CARE</summary>
+                <table className="mt-3 w-full border-collapse text-left text-sm">
+                  <caption className="sr-only">Specifications and care for {product.title}</caption>
+                  <tbody>
+                    {specs.map(([k, v]) => <tr key={k} className="border-b border-gold-500/20"><th scope="row" className="w-2/5 py-2 pr-3 align-top font-normal text-ink/60">{k}</th><td className="py-2 font-medium text-ink">{v}</td></tr>)}
+                    <tr className="border-b border-gold-500/20"><th scope="row" className="w-2/5 py-2 pr-3 align-top font-normal text-ink/60">Product type</th><td className="py-2 font-medium text-ink">Imitation jewellery, gold plated. Not solid gold.</td></tr>
+                    <tr><th scope="row" className="w-2/5 py-2 pr-3 align-top font-normal text-ink/60">Care</th><td className="py-2 text-ink">{product.care_notes?.trim() || 'Keep dry, avoid perfume and water, store apart from other pieces.'} <a href={POLICY_LINKS.care.href} className="text-onyx-300 underline underline-offset-4">Full care guide</a></td></tr>
+                  </tbody>
+                </table></details>
               <details className={detail}><summary className="cursor-pointer font-display text-sm tracking-[0.1em] text-onyx-300">SHIPPING &amp; RETURNS</summary>
                 <p className="mt-3 text-[15px] leading-7 text-ink/85">Delivery details are in our <a href={POLICY_LINKS.shipping.href} className="text-onyx-300 underline underline-offset-4">shipping policy</a>. You can raise a return from My orders within 7 days of delivery; see the <a href={POLICY_LINKS.returns.href} className="text-onyx-300 underline underline-offset-4">return &amp; refund policy</a>.</p></details>
               <p className="flex items-center gap-2 border-t border-gold-500/30 pt-4 text-[13px] text-ink/65"><ShieldCheck className="h-4 w-4 text-onyx-300" aria-hidden />Payments are processed by Razorpay. We never see your card or UPI details.</p>
@@ -176,10 +188,10 @@ export function ProductPage({ id }: { id: string }) {
       </Section>
 
       {related.length > 0 && (
-        <section className="mt-14">
-          <SectionHead title="You may also love" deva="और देखें" />
+        <aside className="mt-14" aria-label="Related pieces">
+          <SectionHead title={out ? 'Similar pieces available now' : 'You may also love'} deva="और देखें" />
           <Section><div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6">{related.map((p, i) => <ProductCard key={p.id} product={p} index={i} />)}</div></Section>
-        </section>
+        </aside>
       )}
 
       {/* Mobile action bar */}
@@ -187,6 +199,6 @@ export function ProductPage({ id }: { id: string }) {
         <button onClick={add} disabled={out || maxQty <= 0} className="min-h-12 flex-1 rounded border-2 border-onyx-300 font-display text-xs tracking-[0.1em] text-onyx-300 disabled:opacity-40">ADD TO BAG</button>
         <button onClick={buyNow} disabled={out || maxQty <= 0} className="min-h-12 flex-1 rounded bg-onyx-300 font-display text-xs tracking-[0.1em] text-gold-100 disabled:opacity-40">{out ? 'SOLD OUT' : 'BUY NOW'}</button>
       </div>
-    </div>
+    </article>
   );
 }

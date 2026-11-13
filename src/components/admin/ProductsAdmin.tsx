@@ -1,3 +1,4 @@
+import { StockAlertsCard } from '@/components/admin/StockAlertsCard';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ImagePlus, Loader2, Pencil, Plus, Search, Star, Trash2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +23,7 @@ type Form = ProductInput & { photos: string[] };
 const EMPTY: Form = {
   title: '', description: '', original_price: 0, selling_price: 0, discount_percent: 0, stock: 0, weight_grams: 100,
   material_type: '', polish_finish: '', dimensions: '', category: '', sub_category: '', occasion_wear: '', is_featured: false, photos: [],
+  purity: '', plating: '', stone_type: '', certification: '', care_notes: '', style_tags: [],
 };
 
 /** Product catalogue: photos only (first photo is the cover). Every angle uploaded here becomes a swipeable, zoomable photo for customers. */
@@ -54,6 +56,7 @@ export function ProductsAdmin() {
         title: p.title, description: p.description ?? '', original_price: p.original_price, selling_price: p.selling_price, discount_percent: p.discount_percent,
         stock: p.stock, weight_grams: p.weight_grams ?? 100, material_type: p.material_type ?? '', polish_finish: p.polish_finish ?? '', dimensions: p.dimensions ?? '',
         category: p.category, sub_category: p.sub_category ?? '', occasion_wear: p.occasion_wear ?? '', is_featured: p.is_featured, photos: productImages(p),
+        purity: p.purity ?? '', plating: p.plating ?? '', stone_type: p.stone_type ?? '', certification: p.certification ?? '', care_notes: p.care_notes ?? '', style_tags: p.style_tags ?? [],
       });
       setEditing(p.id);
     }
@@ -101,6 +104,9 @@ export function ProductsAdmin() {
     const payload = {
       ...rest, title: form.title.trim(), image_url: photos[0], gallery_urls: photos.slice(1),
       discount_percent: calculateDiscount(Number(form.original_price), Number(form.selling_price)),
+      // an empty box means "not applicable": store nothing, never an empty claim
+      purity: form.purity?.trim() || null, plating: form.plating?.trim() || null, stone_type: form.stone_type?.trim() || null,
+      certification: form.certification?.trim() || null, care_notes: form.care_notes?.trim() || null,
     };
     const res = editing === 'new'
       ? await supabase.from('products').insert(payload)
@@ -168,6 +174,18 @@ export function ProductsAdmin() {
           </div>
         </Card>
 
+        <Card title="Extra details for Google (optional)">
+          <p className="mb-4 text-sm text-ink/70">These help customers and search engines. <b>Fill a box only if it is true for this piece.</b> An empty box is simply not shown. Do not write "BIS Hallmark" or "Anti-tarnish" unless the piece really has it.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Purity" hint="e.g. 925 silver. Leave empty for plated imitation pieces."><input value={form.purity ?? ''} onChange={(e) => set('purity', e.target.value)} className={inputCls} maxLength={60} /></Field>
+            <Field label="Plating" hint="e.g. 1 gram gold plated"><input value={form.plating ?? ''} onChange={(e) => set('plating', e.target.value)} className={inputCls} maxLength={60} /></Field>
+            <Field label="Stone" hint="e.g. American diamond, kundan, pearl"><input value={form.stone_type ?? ''} onChange={(e) => set('stone_type', e.target.value)} className={inputCls} maxLength={60} /></Field>
+            <Field label="Certification" hint="Only if you hold a real certificate for this piece"><input value={form.certification ?? ''} onChange={(e) => set('certification', e.target.value)} className={inputCls} maxLength={80} /></Field>
+            <div className="sm:col-span-2"><Field label="Style tags" hint="Separate with commas, e.g. bridal, kundan, choker"><input value={(form.style_tags ?? []).join(', ')} onChange={(e) => set('style_tags', e.target.value.split(',').map((t) => t.trim()).filter(Boolean).slice(0, 10))} className={inputCls} /></Field></div>
+            <div className="sm:col-span-2"><Field label="Care note for this piece" hint="Leave empty to show the standard care line"><input value={form.care_notes ?? ''} onChange={(e) => set('care_notes', e.target.value)} className={inputCls} maxLength={200} /></Field></div>
+          </div>
+        </Card>
+
         <Card title="Price & stock">
           <div className="grid gap-4 sm:grid-cols-4">
             <Field label="Original price (₹)">{num('original_price')}</Field>
@@ -193,6 +211,7 @@ export function ProductsAdmin() {
         <div className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/50" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products" aria-label="Search products" className={`${inputCls} pl-9`} /></div>
         <button onClick={() => open()} className={btnPrimary}><Plus className="h-4 w-4" />Add product</button>
       </div>
+      <StockAlertsCard />
       {loading ? <p className="py-10 text-center text-ink/60">Loading…</p> : shown.length === 0 ? <p className="py-10 text-center text-ink/60">No products found.</p> : (
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {shown.map((p) => (
