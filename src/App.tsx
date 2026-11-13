@@ -22,6 +22,7 @@ import { AdminPage } from '@/pages/AdminPage';
 import { MyOrders } from '@/pages/MyOrders';
 import { PolicyPage, isPolicyPath } from '@/pages/PolicyPage';
 import { callFunction } from '@/lib/api';
+import { useSeo } from '@/lib/seo';
 import { go, useRoute } from '@/lib/router';
 import { uploadReturnPhoto } from '@/utils/returnPhotoUpload';
 
@@ -36,6 +37,10 @@ function Shell() {
   const [authTitle, setAuthTitle] = useState('Welcome Back');
   const [wantsCheckout, setWantsCheckout] = useState(false);
   const [selectedReturn, setSelectedReturn] = useState<SelectedReturn | null>(null);
+
+  // pages that must never appear in Google: bag, checkout, accounts, tracking, admin
+  const PRIVATE_TITLES: Record<string, string> = { checkout: 'Checkout', track: 'Track your order', wishlist: 'Your wishlist', orders: 'Your orders', return: 'Return request', admin: 'Admin' };
+  useSeo(PRIVATE_TITLES[route.name] ? { title: PRIVATE_TITLES[route.name], noindex: true } : null);
 
   const signIn = (title = 'Welcome Back') => { setAuthTitle(title); setAuthOpen(true); };
 

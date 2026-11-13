@@ -8,6 +8,8 @@ import { About } from '@/components/About';
 import { OrnDivider, Section, SectionHead } from '@/components/ornaments';
 import { useProducts } from '@/context/ProductsContext';
 import { useStoreConfig } from '@/lib/storeConfig';
+import { useSeo } from '@/lib/seo';
+import { organizationSchema } from '@/lib/schema';
 import { SHOP_DEFAULTS } from '@/lib/policies';
 import { shopHref } from '@/lib/router';
 import { formatINR } from '@/utils/format';
@@ -16,6 +18,12 @@ import { PLACEHOLDER_IMG } from '@/utils/images';
 export function HomePage() {
   const { products, loading, error, refetch } = useProducts();
   const { config, num, whatsappLink } = useStoreConfig();
+  useSeo({
+    title: "Yaba's Imitation & Jewellery | Gold-Plated Necklaces, Bangles & Bridal Sets, Mumbai",
+    description: "Gold-plated (1 gram gold) necklaces, bangles, earrings and bridal sets from Mira Road, Mumbai. Imitation jewellery for weddings, festivals and daily wear, delivered across India.",
+    path: '/',
+    jsonLd: organizationSchema(config),
+  });
 
   const categories = useMemo(() => {
     const seen = new Map<string, string>();

@@ -19,6 +19,13 @@ export interface Product {
   category: string;
   sub_category: string;
   occasion_wear: string;
+  /** optional details; empty unless the owner fills them in (never invented) */
+  purity?: string | null;
+  plating?: string | null;
+  stone_type?: string | null;
+  certification?: string | null;
+  care_notes?: string | null;
+  style_tags?: string[] | null;
   is_featured: boolean;
   created_at: string;
   updated_at: string;
@@ -88,5 +95,11 @@ export interface ProductInput {
   category?: string;
   sub_category?: string;
   occasion_wear?: string;
+  purity?: string;
+  plating?: string;
+  stone_type?: string;
+  certification?: string;
+  care_notes?: string;
+  style_tags?: string[];
   is_featured?: boolean;
 }

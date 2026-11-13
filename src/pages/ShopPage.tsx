@@ -5,6 +5,10 @@ import { SkeletonCard } from '@/components/SkeletonCard';
 import { Section, SectionHead } from '@/components/ornaments';
 import { useProducts } from '@/context/ProductsContext';
 import { go, shopHref, slugify } from '@/lib/router';
+import { useStoreConfig } from '@/lib/storeConfig';
+import { useSeo } from '@/lib/seo';
+import { breadcrumbSchema, collectionFaqs, collectionSchema, faqSchema } from '@/lib/schema';
+import { formatINR } from '@/utils/format';
 import type { Product } from '@/types';
 
 const SORTS = [
@@ -51,6 +55,27 @@ export function ShopPage({ category: rawCategory, q }: { category: string; q: st
             : +new Date(b.created_at) - +new Date(a.created_at));
   }, [products, category, q, sort, band, inStock]);
 
+  const { config } = useStoreConfig();
+  const inCategory = useMemo(() => products.filter((p) => category === 'All' || p.category === category), [products, category]);
+  const faqs = useMemo(() => collectionFaqs(category, config), [category, config]);
+  const label = category === 'All' ? 'Gold-Plated Jewellery' : `Gold-Plated ${category}`;
+  const cheapest = inCategory.length ? Math.min(...inCategory.map((p) => p.selling_price)) : 0;
+  const intro = inCategory.length
+    ? `Shop ${inCategory.length} ${inCategory.length === 1 ? 'piece' : 'pieces'} of ${label.toLowerCase()} from Yaba's Imitation & Jewellery, Mira Road, Mumbai${cheapest > 0 ? `, starting at ${formatINR(cheapest)}` : ''}. Imitation jewellery with a 1-gram gold-plated finish, delivered across India.`
+    : `${label} from Yaba's Imitation & Jewellery, Mira Road, Mumbai.`;
+  const path = category === 'All' ? '/shop' : `/collections/${slugify(category)}`;
+  useSeo(loading ? null : {
+    title: `${label} Online in India`,
+    description: intro.slice(0, 160),
+    path,
+    noindex: Boolean(q) || inCategory.length === 0,
+    jsonLd: q || inCategory.length === 0 ? [] : [
+      collectionSchema(label, path, intro, inCategory),
+      breadcrumbSchema([{ name: 'Home', path: '/' }, ...(category === 'All' ? [{ name: 'Shop', path: '/shop' }] : [{ name: category, path }])]),
+      faqSchema(faqs),
+    ],
+  });
+
   const activeFilters = (band !== 'any' ? 1 : 0) + (inStock ? 1 : 0);
   const sel = 'h-11 w-full rounded-md border border-gold-500/50 bg-white px-3 text-sm text-ink focus:border-gold-500 focus:outline-none';
 
@@ -72,11 +97,12 @@ export function ShopPage({ category: rawCategory, q }: { category: string; q: st
     <div className="pb-6">
       <div className="jaali-teal py-8 text-center text-cream-100">
         <p className="font-deva text-gold-200">संग्रह</p>
-        <h1 className="font-display text-2xl tracking-[0.1em] text-gold-100 sm:text-4xl">{q ? `Results for “${q}”` : category === 'All' ? 'The Collection' : category}</h1>
+        <h1 className="font-display text-2xl tracking-[0.1em] text-gold-100 sm:text-4xl">{q ? `Results for “${q}”` : category === 'All' ? 'The Collection' : label}</h1>
       </div>
       <div className="scallop-teal" aria-hidden="true" />
 
       <Section className="pt-6">
+        {!q && <p className="mx-auto mb-5 max-w-2xl text-center text-[15px] leading-7 text-ink/75">{intro}</p>}
         <form onSubmit={(e) => { e.preventDefault(); go(shopHref(category, draft.trim()).slice(1)); }} role="search" className="relative mx-auto mb-4 max-w-xl">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/50" aria-hidden />
           <input value={draft} onChange={(e) => setDraft(e.target.value)} type="search" aria-label="Search the collection" placeholder="Search by name, occasion or material"
@@ -114,6 +140,22 @@ export function ShopPage({ category: rawCategory, q }: { category: string; q: st
           </div>
         )}
       </Section>
+
+      {!q && !loading && inCategory.length > 0 && (
+        <Section className="mt-12">
+          <section aria-labelledby="faq-h" className="mx-auto max-w-3xl">
+            <h2 id="faq-h" className="font-display text-xl tracking-[0.08em] text-onyx-300">Questions buyers ask about {category === 'All' ? 'our jewellery' : category.toLowerCase()}</h2>
+            <div className="mt-4 divide-y divide-gold-500/25 border-y border-gold-500/25">
+              {faqs.map((f) => (
+                <details key={f.q} className="group py-4">
+                  <summary className="cursor-pointer font-display text-[15px] tracking-wide text-onyx-300"><h3 className="inline">{f.q}</h3></summary>
+                  <p className="mt-2 text-[15px] leading-7 text-ink/85">{f.a}</p>
+                </details>
+              ))}
+            </div>
+          </section>
+        </Section>
+      )}
     </div>
   );
 }
