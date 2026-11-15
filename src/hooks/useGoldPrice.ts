@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { readCache, saveCache } from '@/lib/offline';
 
 export interface GoldPrice {
   price_per_gram_24k: number;
@@ -6,7 +7,7 @@ export interface GoldPrice {
 }
 
 export function useGoldPrice() {
-  const [goldPrice, setGoldPrice] = useState<GoldPrice | null>(null);
+  const [goldPrice, setGoldPrice] = useState<GoldPrice | null>(() => readCache<GoldPrice>('gold-rate'));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,10 +26,9 @@ export function useGoldPrice() {
         const rows = await res.json();
         if (!rows.length) throw new Error('No rate saved yet');
         if (!cancelled) {
-          setGoldPrice({
-            price_per_gram_24k: Number(rows[0].rate_per_gram_24k),
-            timestamp: rows[0].created_at,
-          });
+          const fresh = { price_per_gram_24k: Number(rows[0].rate_per_gram_24k), timestamp: rows[0].created_at };
+          setGoldPrice(fresh);
+          saveCache('gold-rate', fresh);
           setError(null);
         }
       } catch (err) {

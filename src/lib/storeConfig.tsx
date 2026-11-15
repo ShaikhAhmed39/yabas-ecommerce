@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { readCache, saveCache } from '@/lib/offline';
 
 /** Business details and charges the owner edits in Admin > Store settings. All values arrive as text. */
 export type StoreConfig = Partial<Record<
@@ -27,13 +28,13 @@ export function digitsOnly(v: string | undefined): string {
 }
 
 export function StoreConfigProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<StoreConfig>({});
+  const [config, setConfig] = useState<StoreConfig>(() => readCache<StoreConfig>('store-config') ?? {});
   const [loaded, setLoaded] = useState(false);
 
   const refresh = async () => {
     try {
       const { data, error } = await supabase.rpc('get_store_config');
-      if (!error && data && typeof data === 'object') setConfig(data as StoreConfig);
+      if (!error && data && typeof data === 'object') { setConfig(data as StoreConfig); saveCache('store-config', data); }
     } catch {
       /* the store works with empty settings */
     } finally {

@@ -51,7 +51,7 @@ export function TrackOrderPage({ initialOrder }: { initialOrder?: string }) {
 
   return (
     <Section className="max-w-2xl py-10">
-      <SectionHead title="Track your order" deva="ऑर्डर ट्रैक करें" sub="Enter your order number and the mobile number you used at checkout." />
+      <SectionHead h1 title="Track your order" deva="ऑर्डर ट्रैक करें" sub="Enter your order number and the mobile number you used at checkout." />
       <form onSubmit={submit} className="frame-gold space-y-4 rounded-md bg-cream-50 p-5 sm:p-6" noValidate>
         <label className="block"><span className="mb-1 block text-sm font-medium">Order number</span>
           <input value={orderNo} onChange={(e) => setOrderNo(e.target.value.toUpperCase())} placeholder="YB000123" autoCapitalize="characters" className={input} /></label>

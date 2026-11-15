@@ -5,6 +5,7 @@ import type { Product } from '@/types';
  *  so Google can index every page. Old #/ links still work: they are converted on first load. */
 export type Route =
   | { name: 'home' }
+  | { name: 'notfound' }
   | { name: 'shop'; category: string; q: string }
   | { name: 'product'; id: string }
   | { name: 'checkout' }
@@ -44,7 +45,8 @@ export function parsePath(pathname: string, search: string): Route {
     case 'orders': case 'my-orders': return { name: 'orders' };
     case 'return': case 'return-request': return { name: 'return' };
     case 'admin': return { name: 'admin' };
-    default: return { name: 'home' };
+    case undefined: return { name: 'home' };
+    default: return { name: 'notfound' };
   }
 }
 
@@ -89,6 +91,8 @@ export function go(path: string, opts: { replace?: boolean } = {}) {
 export function installLinkHandler() {
   document.addEventListener('click', (e) => {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    // Policy pages are full pages, not part of the app: links leaving them must be normal page loads.
+    if (!isAppPath(window.location.pathname)) return;
     const a = (e.target as Element | null)?.closest?.('a');
     if (!a || a.target === '_blank' || a.hasAttribute('download')) return;
     const href = a.getAttribute('href');
