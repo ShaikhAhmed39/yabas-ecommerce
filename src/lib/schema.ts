@@ -32,7 +32,7 @@ export function productSpecs(p: Product): [string, string][] {
   const rows: [string, string | undefined | null][] = [
     ['Material', p.material_type], ['Finish', p.polish_finish], ['Purity / plating', [p.purity, p.plating].filter(Boolean).join(', ')],
     ['Stone', p.stone_type], ['Size / dimensions', p.dimensions], ['Occasion', p.occasion_wear],
-    ['Type', p.sub_category || p.category], ['Style', (p.style_tags ?? []).join(', ')], ['Certification', p.certification],
+    ['Type', (p.sub_category || p.category).replace(' > ', ' – ')], ['Style', (p.style_tags ?? []).join(', ')], ['Certification', p.certification],
   ];
   return rows.filter((r): r is [string, string] => Boolean(r[1] && String(r[1]).trim()));
 }
@@ -82,7 +82,7 @@ export function productSchema(p: Product, cfg: StoreConfig): Json {
 
 /** A 40-60 word direct answer: what it is, who it suits, price and availability. Shown on the page, in the static HTML and in llms.txt. */
 export function productSummary(p: Product, cfg: StoreConfig): string {
-  const kind = (p.sub_category || p.category || 'jewellery').toLowerCase();
+  const kind = (p.sub_category || p.category || 'jewellery').split(' > ').reverse().join(', ').toLowerCase();
   const look = [p.material_type, p.polish_finish].filter((v) => v && v.trim()).join(', ');
   const occasion = p.occasion_wear ? ` suited to ${p.occasion_wear.toLowerCase()} wear` : '';
   const off = p.original_price && p.original_price > p.selling_price ? `, ${Math.round(100 - (p.selling_price / p.original_price) * 100)}% below the ₹${Math.round(p.original_price).toLocaleString('en-IN')} list price` : '';
