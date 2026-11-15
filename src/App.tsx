@@ -7,6 +7,8 @@ import { StoreConfigProvider } from '@/lib/storeConfig';
 import { GoldTicker } from '@/components/GoldTicker';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { OfflineBanner } from '@/components/OfflineBanner';
+import { NotFoundPage } from '@/pages/NotFoundPage';
 import { BottomNav } from '@/components/BottomNav';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { CartDrawer } from '@/components/CartDrawer';
@@ -39,7 +41,7 @@ function Shell() {
   const [selectedReturn, setSelectedReturn] = useState<SelectedReturn | null>(null);
 
   // pages that must never appear in Google: bag, checkout, accounts, tracking, admin
-  const PRIVATE_TITLES: Record<string, string> = { checkout: 'Checkout', track: 'Track your order', wishlist: 'Your wishlist', orders: 'Your orders', return: 'Return request', admin: 'Admin' };
+  const PRIVATE_TITLES: Record<string, string> = { checkout: 'Checkout', track: 'Track your order', wishlist: 'Your wishlist', orders: 'Your orders', return: 'Return request', admin: 'Admin', notfound: 'Page not found' };
   useSeo(PRIVATE_TITLES[route.name] ? { title: PRIVATE_TITLES[route.name], noindex: true } : null);
 
   const signIn = (title = 'Welcome Back') => { setAuthTitle(title); setAuthOpen(true); };
@@ -117,11 +119,13 @@ function Shell() {
         />
       );
       break;
+    case 'notfound': page = <NotFoundPage />; break;
     default: page = <HomePage />;
   }
 
   return (
     <div className="min-h-screen bg-cream-100 pb-16 lg:pb-0">
+      <OfflineBanner />
       <GoldTicker />
       <Header route={route} onSignIn={() => signIn()} />
       <main id="main" key={route.name === 'product' ? `product-${route.id}` : route.name} className="animate-drop-in">{page}</main>

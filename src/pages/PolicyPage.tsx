@@ -1,6 +1,6 @@
 import { useStoreConfig } from '@/lib/storeConfig';
-import { useAuth } from '@/context/AuthContext';
-import { fillPolicyTokens, hasUnfilledTokens } from '@/lib/policies';
+import { fillPolicyTokens } from '@/lib/policies';
+import { useSeo } from '@/lib/seo';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 
 const policies = {
@@ -86,10 +86,16 @@ export function isPolicyPath(pathname: string) {
 
 export function PolicyPage() {
   const { config } = useStoreConfig();
-  const { isAdmin } = useAuth();
   const fill = (t: string) => fillPolicyTokens(t, config);
   const path = window.location.pathname.replace(/\/$/, '') || '/privacy-policy';
   const policy = policies[path as keyof typeof policies] ?? policies['/privacy-policy'];
+  useSeo({ title: policy.title, description: `${policy.title} of Yaba's Imitation & Jewellery, Mumbai.`, path });
+  // Back goes to the page the customer came from; opened directly (no history), it goes to the home page.
+  const goBack = (e: React.MouseEvent) => {
+    let sameSite = false;
+    try { sameSite = !!document.referrer && new URL(document.referrer).origin === window.location.origin; } catch { /* ignore */ }
+    if (sameSite && window.history.length > 1) { e.preventDefault(); window.history.back(); }
+  };
   return (
     <div className="min-h-screen bg-cream-100 text-onyx-300">
       <header className="border-b border-gold-400/25 bg-cream-100/95">
@@ -98,7 +104,7 @@ export function PolicyPage() {
             <img src="/yabas_logo.png" alt="Yaba's Jewelry" className="h-10 w-10 rounded-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
             <span className="font-display text-lg font-bold">Yaba's <span className="text-gold-400">Jewelry</span></span>
           </a>
-          <a href="/" className="inline-flex items-center gap-2 text-sm font-medium text-onyx-300 transition hover:text-gold-400"><ArrowLeft size={16} /> Back to store</a>
+          <a href="/" onClick={goBack} className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-onyx-300 transition hover:text-gold-400"><ArrowLeft size={16} /> Back to store</a>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-16">
@@ -106,7 +112,6 @@ export function PolicyPage() {
           <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-gold-500"><ShieldCheck size={16} /> {policy.eyebrow}</div>
           <h1 className="font-display text-3xl font-semibold leading-tight sm:text-5xl">{policy.title}</h1>
           <p className="mt-4 text-sm text-onyx-300/65">Effective / last updated: {fill(policy.updated)}</p>
-          {isAdmin && policy.sections.some(([h, b]) => hasUnfilledTokens(fill(h + b))) && <p className="mt-5 max-w-3xl rounded-md bg-gold-100 p-3 text-sm leading-6 text-onyx-300">Admin note: some [PLACEHOLDERS] below are not filled yet. Add them in Admin → Store settings; customers see this page exactly as shown here.</p>}
         </div>
         <article className="space-y-5">
           {policy.sections.map(([heading, body]) => (
@@ -120,7 +125,7 @@ export function PolicyPage() {
           <strong className="text-cream-100">Need help?</strong> Contact {fillPolicyTokens('[SUPPORT EMAIL]', config) === '[SUPPORT EMAIL]' ? '' : fillPolicyTokens('[SUPPORT EMAIL]', config) + ' or '}{fillPolicyTokens('[SUPPORT PHONE]', config)}.
         </div>
         <nav aria-label="Other policies" className="mt-8 flex flex-wrap gap-x-5 gap-y-3 text-sm">
-          {Object.entries(policies).filter(([url]) => url !== path).map(([url, item]) => <a key={url} href={url} className="text-onyx-300/70 underline decoration-gold-400/60 underline-offset-4 hover:text-gold-500">{item.title}</a>)}
+          {Object.entries(policies).filter(([url]) => url !== path).map(([url, item]) => <a key={url} href={url} className="inline-flex min-h-11 items-center text-onyx-300/70 underline decoration-gold-400/60 underline-offset-4 hover:text-gold-500">{item.title}</a>)}
         </nav>
       </main>
       <footer className="border-t border-gold-400/20 px-4 py-6 text-center text-xs text-onyx-300/60">© {new Date().getFullYear()} Yaba's Jewelry · Crafted with love in Mumbai</footer>

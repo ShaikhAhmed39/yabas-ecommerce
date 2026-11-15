@@ -27,7 +27,7 @@ export function GoldTicker() {
         <div className="mx-auto max-w-7xl px-4 py-2 flex items-center justify-center">
           <button
             onClick={() => setPopupOpen(true)}
-            className="flex items-center gap-2 text-xs sm:text-sm text-cream-200 hover:text-gold-300 transition-colors duration-200 px-3 sm:px-4 py-2"
+            className="flex min-h-11 items-center gap-2 text-xs sm:text-sm text-cream-200 hover:text-gold-300 transition-colors duration-200 px-3 sm:px-4 py-2"
           >
             <TrendingUp className="h-3.5 w-3.5 text-gold-300" aria-hidden />
             <span className="flex items-center gap-1.5">

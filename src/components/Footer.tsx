@@ -39,11 +39,11 @@ export function Footer() {
           <nav aria-label="Shop">
             <h4 className="mb-4 font-display text-base tracking-[0.12em] text-gold-200">SHOP</h4>
             <ul className="space-y-1 text-[15px]">
-              <li><a className={`${link} inline-block py-1.5`} href={shopHref()}>All jewellery</a></li>
-              <li><a className={`${link} inline-block py-1.5`} href="/track">Track an order</a></li>
-              <li><a className={`${link} inline-block py-1.5`} href="/orders">My orders &amp; returns</a></li>
-              <li><a className={`${link} inline-block py-1.5`} href="/wishlist">Wishlist</a></li>
-              <li><a className={`${link} inline-block py-1.5`} href="#about">Our story</a></li>
+              <li><a className={`${link} inline-flex min-h-11 items-center`} href={shopHref()}>All jewellery</a></li>
+              <li><a className={`${link} inline-flex min-h-11 items-center`} href="/track">Track an order</a></li>
+              <li><a className={`${link} inline-flex min-h-11 items-center`} href="/orders">My orders &amp; returns</a></li>
+              <li><a className={`${link} inline-flex min-h-11 items-center`} href="/wishlist">Wishlist</a></li>
+              <li><a className={`${link} inline-flex min-h-11 items-center`} href="#about">Our story</a></li>
             </ul>
           </nav>
 
@@ -51,7 +51,7 @@ export function Footer() {
             <h4 className="mb-4 font-display text-base tracking-[0.12em] text-gold-200">POLICIES</h4>
             <ul className="space-y-1 text-[15px]">
               {Object.values(POLICY_LINKS).map((l) => (
-                <li key={l.href}><a className={`${link} inline-block py-1.5`} href={l.href}>{l.label}</a></li>
+                <li key={l.href}><a className={`${link} inline-flex min-h-11 items-center`} href={l.href}>{l.label}</a></li>
               ))}
             </ul>
           </nav>
