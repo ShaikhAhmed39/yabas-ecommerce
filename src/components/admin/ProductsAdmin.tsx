@@ -9,14 +9,27 @@ import { productImages } from '@/utils/images';
 import { btnDanger, btnGhost, btnPrimary, Card, Field, inputCls, Notice, Toggle } from '@/components/admin/AdminUI';
 import type { Product, ProductInput } from '@/types';
 
-const CATEGORIES = ['Necklace', 'Earrings', 'Bangles', 'Rings', 'Bracelet', 'Bridal', 'Anklets'];
-const SUB: Record<string, string[]> = {
-  Necklace: ['Choker', 'Long', 'Rani Haar', 'Mangalsutra', 'Pendant'], Earrings: ['Studs', 'Jhumka', 'Chandbali', 'Hoop', 'Drop'],
-  Bangles: ['Kada', 'Stack', 'Glass', 'Gold Plated'], Rings: ['Cocktail', 'Engagement', 'Daily Wear', 'Adjustable'],
-  Bracelet: ['Chain', 'Cuff', 'Charm', 'Pearl'], Bridal: ['Full Set', 'Necklace Set', 'Maang Tikka', 'Nath', 'Kamarbandh'],
-  Anklets: ['Chain', 'Beaded', 'Traditional', 'Modern'],
+// The owner's catalogue. "subs" = first list, "types" = second list (only where the owner gave one).
+// Saved in one field as "Indian Necklace > Long Necklace" so no database change is needed.
+const TREE: Record<string, { subs: string[]; types?: string[] }> = {
+  Necklace: { subs: ['Indian Necklace', 'Turkish Necklace'], types: ['Long Necklace', 'Short Necklace', 'Unique Set', 'Combo Set', 'Bridal Set'] },
+  Ring: { subs: ['Indian Ring', 'Turkish Ring'], types: ['Long Ring', 'Small Ring', 'Bridal Ring'] },
+  Paasa: { subs: [] },
+  Nath: { subs: [] },
+  Mangalsutra: { subs: ['Daily Wear', 'Long Mangalsutra', 'AD Mangalsutra'] },
+  Chain: { subs: ['Chain'] },
+  Earrings: { subs: ['Indian Earrings', 'Turkish Earrings'], types: ['Tops', 'Earrings', 'Sui Dhaga', 'Bridal Earrings', 'Occasion Earrings'] },
+  Maangtika: { subs: [] },
+  Bangles: { subs: ['Kada', 'Stack', 'Glass', 'Gold Plated'] },
+  Bracelet: { subs: ['Chain', 'Cuff', 'Charm', 'Pearl'] },
+  Bridal: { subs: ['Full Set', 'Necklace Set', 'Maang Tikka', 'Nath', 'Kamarbandh'] },
 };
-const OCCASIONS = ['Daily Wear', 'Wedding', 'Festive', 'Party', 'Traditional', 'Office', 'Casual'];
+const CATEGORIES = Object.keys(TREE);
+const SEP = ' > ';
+const splitSub = (v: string) => { const [a = '', ...r] = (v ?? '').split(SEP); return [a, r.join(SEP)] as const; };
+/** list plus the product's current value, so an older value is never wiped when the owner edits that product */
+const withCurrent = (list: string[], cur: string) => (cur && !list.includes(cur) ? [...list, cur] : list);
+const OCCASIONS = ['Daily Wear', 'Wedding', 'Festive', 'Party', 'Office', 'Casual'];
 const MAX_PHOTOS = 8;
 
 type Form = ProductInput & { photos: string[] };
@@ -166,8 +179,16 @@ export function ProductsAdmin() {
             <div className="sm:col-span-2"><Field label="Product name"><input value={form.title} onChange={(e) => set('title', e.target.value)} className={inputCls} maxLength={120} /></Field></div>
             <div className="sm:col-span-2"><Field label="Description" hint="Shown on the product page. Be honest about material and finish."><textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={4} className="w-full rounded-lg border border-cream-400 p-3 text-[15px] focus:border-onyx-300 focus:outline-none" /></Field></div>
             <Field label="Category"><select value={form.category} onChange={(e) => { set('category', e.target.value); set('sub_category', ''); }} className={inputCls}><option value="">Select</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
-            <Field label="Sub-category"><select value={form.sub_category} onChange={(e) => set('sub_category', e.target.value)} className={inputCls} disabled={!form.category}><option value="">None</option>{(SUB[form.category ?? ''] ?? []).map((c) => <option key={c}>{c}</option>)}</select></Field>
-            <Field label="Occasion"><select value={form.occasion_wear} onChange={(e) => set('occasion_wear', e.target.value)} className={inputCls}><option value="">None</option>{OCCASIONS.map((c) => <option key={c}>{c}</option>)}</select></Field>
+            {(() => {
+              const node = TREE[form.category ?? ''] ?? { subs: [] };
+              const [sub, type] = splitSub(form.sub_category ?? '');
+              const save = (nsub: string, ntype: string) => set('sub_category', nsub && ntype ? `${nsub}${SEP}${ntype}` : nsub);
+              return (<>
+                <Field label="Sub-category"><select value={sub} onChange={(e) => save(e.target.value, '')} className={inputCls} disabled={!form.category}><option value="">None</option>{withCurrent(node.subs, sub).map((c) => <option key={c}>{c}</option>)}</select></Field>
+                {node.types && <Field label="Type" hint="Pick the sub-category first"><select value={type} onChange={(e) => save(sub, e.target.value)} className={inputCls} disabled={!sub}><option value="">None</option>{withCurrent(node.types, type).map((c) => <option key={c}>{c}</option>)}</select></Field>}
+              </>);
+            })()}
+            <Field label="Occasion"><select value={form.occasion_wear} onChange={(e) => set('occasion_wear', e.target.value)} className={inputCls}><option value="">None</option>{withCurrent(OCCASIONS, form.occasion_wear ?? '').map((c) => <option key={c}>{c}</option>)}</select></Field>
             <Field label="Material" hint="e.g. Brass with 1-gram gold plating"><input value={form.material_type} onChange={(e) => set('material_type', e.target.value)} className={inputCls} /></Field>
             <Field label="Finish"><input value={form.polish_finish} onChange={(e) => set('polish_finish', e.target.value)} className={inputCls} /></Field>
             <Field label="Size / dimensions"><input value={form.dimensions} onChange={(e) => set('dimensions', e.target.value)} className={inputCls} /></Field>
@@ -178,7 +199,8 @@ export function ProductsAdmin() {
           <p className="mb-4 text-sm text-ink/70">These help customers and search engines. <b>Fill a box only if it is true for this piece.</b> An empty box is simply not shown. Do not write "BIS Hallmark" or "Anti-tarnish" unless the piece really has it.</p>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Purity" hint="e.g. 925 silver. Leave empty for plated imitation pieces."><input value={form.purity ?? ''} onChange={(e) => set('purity', e.target.value)} className={inputCls} maxLength={60} /></Field>
-            <Field label="Plating" hint="e.g. 1 gram gold plated"><input value={form.plating ?? ''} onChange={(e) => set('plating', e.target.value)} className={inputCls} maxLength={60} /></Field>
+            <Field label="Plating" hint="Tap the box and pick 1 gram gold plated"><input list="plating-list" value={form.plating ?? ''} onChange={(e) => set('plating', e.target.value)} className={inputCls} maxLength={60} /></Field>
+            <datalist id="plating-list"><option value="1 gram gold plated" /></datalist>
             <Field label="Stone" hint="e.g. American diamond, kundan, pearl"><input value={form.stone_type ?? ''} onChange={(e) => set('stone_type', e.target.value)} className={inputCls} maxLength={60} /></Field>
             <Field label="Certification" hint="Only if you hold a real certificate for this piece"><input value={form.certification ?? ''} onChange={(e) => set('certification', e.target.value)} className={inputCls} maxLength={80} /></Field>
             <div className="sm:col-span-2"><Field label="Style tags" hint="Separate with commas, e.g. bridal, kundan, choker"><input value={(form.style_tags ?? []).join(', ')} onChange={(e) => set('style_tags', e.target.value.split(',').map((t) => t.trim()).filter(Boolean).slice(0, 10))} className={inputCls} /></Field></div>
