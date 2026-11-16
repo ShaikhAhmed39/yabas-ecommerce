@@ -20,8 +20,8 @@ const TREE: Record<string, { subs: string[]; types?: string[] }> = {
   Chain: { subs: ['Chain'] },
   Earrings: { subs: ['Indian Earrings', 'Turkish Earrings'], types: ['Tops', 'Earrings', 'Sui Dhaga', 'Bridal Earrings', 'Occasion Earrings'] },
   Maangtika: { subs: [] },
-  Bangles: { subs: ['Kada', 'Stack', 'Glass', 'Gold Plated'] },
-  Bracelet: { subs: ['Chain', 'Cuff', 'Charm', 'Pearl'] },
+  Bangles: { subs: ['Bangles', 'Kada', 'AD Bangles'] },
+  Bracelet: { subs: ['Indian Bracelet', 'Turkish Bracelet', 'AD Bracelets'] },
   Bridal: { subs: ['Full Set', 'Necklace Set', 'Maang Tikka', 'Nath', 'Kamarbandh'] },
 };
 const CATEGORIES = Object.keys(TREE);
