@@ -18,6 +18,15 @@
     <meta name="twitter:title" content="Yaba's Imitation & Jewellery" />
     <meta name="twitter:description" content="Premium imitation jewelry from Mumbai" />
     <meta name="twitter:image" content="https://yabasjewellers.com/yabas_logo.png" />
+    <style>
+      /* no white flash: the page starts in the shop's cream colour with the logo, until the shop is ready */
+      html,body{background:#FAF8F4;margin:0}
+      .splash{position:fixed;inset:0;display:grid;place-items:center;background:#FAF8F4}
+      .splash img{width:96px;height:96px;border-radius:50%;object-fit:cover;animation:splash-pulse 1.4s ease-in-out infinite}
+      @keyframes splash-pulse{0%,100%{opacity:.55}50%{opacity:1}}
+      /* the plain-text copy for Google and AI readers stays in the page but is not shown to people */
+      .seo-static{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+    </style>
   </head>
   <body>
     <div id="root"></div>

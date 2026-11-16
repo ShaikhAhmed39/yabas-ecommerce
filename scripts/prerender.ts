@@ -58,7 +58,7 @@ function render(template: string, p: Page): string {
     .replace(/<meta (?:name="description"|property="og:[a-z:_]+"|name="twitter:[a-z:_]+")[^>]*>\s*/g, '')
     .replace('</head>', `    ${headFor(p)}\n  </head>`);
   if (!html.includes('<div id="root"></div>')) throw new Error('index.html root not found');
-  html = html.replace('<div id="root"></div>', `<div id="root">${p.body}</div>`);
+  html = html.replace('<div id="root"></div>', `<div id="root"><div class="splash" aria-hidden="true"><img src="/yabas_logo.png" alt="" width="96" height="96" /></div><div class="seo-static">${p.body}</div></div>`);
   return html;
 }
 
