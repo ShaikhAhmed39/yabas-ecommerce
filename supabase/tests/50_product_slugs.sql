@@ -42,3 +42,30 @@ begin
   delete from public.products where id = p;
   raise notice 'PASS 50b stock alerts';
 end $$;
+
+-- catalogue options: only admins manage them; no duplicates; removing a category removes its sub-lists
+do $$
+declare adm uuid := t4.mk_user(); cust uuid := t4.mk_user(); ok boolean; cid uuid; n int;
+begin
+  insert into public.admin_users(id, email) values (adm, 'catalog@t.test');
+  perform t4.as_user(cust);
+  ok := false; begin perform public.admin_add_catalog_option('category', '', 'Hack'); exception when others then ok := sqlerrm like '%permission%'; end;
+  assert ok, 'customer cannot add';
+  ok := false; begin perform * from public.admin_catalog_options(); exception when others then ok := sqlerrm like '%permission%'; end;
+  assert ok, 'customer cannot read the list';
+  perform t4.as_user(adm);
+  perform public.admin_add_catalog_option('category', '', '  Hair   Pin ');
+  perform public.admin_add_catalog_option('sub', 'Hair Pin', 'Indian Hair Pin');
+  perform public.admin_add_catalog_option('type', 'Hair Pin', 'Long Pin');
+  ok := false; begin perform public.admin_add_catalog_option('category', '', 'hair pin'); exception when others then ok := sqlerrm like '%already%'; end;
+  assert ok, 'duplicate (any capitals) is refused';
+  ok := false; begin perform public.admin_add_catalog_option('sub', 'No Such Category', 'X'); exception when others then ok := sqlerrm like '%category first%'; end;
+  assert ok, 'sub-category needs an existing category';
+  assert exists (select 1 from public.admin_catalog_options() where kind = 'category' and name = 'Hair Pin'), 'name is tidied';
+  select id into cid from public.admin_catalog_options() where kind = 'category' and name = 'Hair Pin';
+  perform public.admin_remove_catalog_option(cid);
+  select count(*) into n from public.admin_catalog_options() where category = 'Hair Pin' or name = 'Hair Pin';
+  assert n = 0, 'removing a category removes its sub-lists';
+  assert (select count(*) from public.admin_catalog_options() where kind = 'category') >= 11, 'starting list is there';
+  raise notice 'PASS catalogue options';
+end $$;

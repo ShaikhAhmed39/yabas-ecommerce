@@ -2,6 +2,7 @@ import { StockAlertsCard } from '@/components/admin/StockAlertsCard';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ImagePlus, Loader2, Pencil, Plus, Search, Star, Trash2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useCatalogOptions } from '@/lib/catalogOptions';
 import { errorMessage } from '@/lib/api';
 import { compressImageToWebP } from '@/utils/imageCompress';
 import { calculateDiscount, formatINR } from '@/utils/format';
@@ -9,27 +10,10 @@ import { productImages } from '@/utils/images';
 import { btnDanger, btnGhost, btnPrimary, Card, Field, inputCls, Notice, Toggle } from '@/components/admin/AdminUI';
 import type { Product, ProductInput } from '@/types';
 
-// The owner's catalogue. "subs" = first list, "types" = second list (only where the owner gave one).
-// Saved in one field as "Indian Necklace > Long Necklace" so no database change is needed.
-const TREE: Record<string, { subs: string[]; types?: string[] }> = {
-  Necklace: { subs: ['Indian Necklace', 'Turkish Necklace'], types: ['Long Necklace', 'Short Necklace', 'Unique Set', 'Combo Set', 'Bridal Set'] },
-  Ring: { subs: ['Indian Ring', 'Turkish Ring'], types: ['Long Ring', 'Small Ring', 'Bridal Ring'] },
-  Paasa: { subs: [] },
-  Nath: { subs: [] },
-  Mangalsutra: { subs: ['Daily Wear', 'Long Mangalsutra', 'AD Mangalsutra'] },
-  Chain: { subs: ['Chain'] },
-  Earrings: { subs: ['Indian Earrings', 'Turkish Earrings'], types: ['Tops', 'Earrings', 'Sui Dhaga', 'Bridal Earrings', 'Occasion Earrings'] },
-  Maangtika: { subs: [] },
-  Bangles: { subs: ['Bangles', 'Kada', 'AD Bangles'] },
-  Bracelet: { subs: ['Indian Bracelet', 'Turkish Bracelet', 'AD Bracelets'] },
-  Bridal: { subs: ['Full Set', 'Necklace Set', 'Maang Tikka', 'Nath', 'Kamarbandh'] },
-};
-const CATEGORIES = Object.keys(TREE);
 const SEP = ' > ';
 const splitSub = (v: string) => { const [a = '', ...r] = (v ?? '').split(SEP); return [a, r.join(SEP)] as const; };
 /** list plus the product's current value, so an older value is never wiped when the owner edits that product */
 const withCurrent = (list: string[], cur: string) => (cur && !list.includes(cur) ? [...list, cur] : list);
-const OCCASIONS = ['Daily Wear', 'Wedding', 'Festive', 'Party', 'Office', 'Casual'];
 const MAX_PHOTOS = 8;
 
 type Form = ProductInput & { photos: string[] };
@@ -41,6 +25,7 @@ const EMPTY: Form = {
 
 /** Product catalogue: photos only (first photo is the cover). Every angle uploaded here becomes a swipeable, zoomable photo for customers. */
 export function ProductsAdmin() {
+  const { tree: catalog } = useCatalogOptions();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
@@ -178,17 +163,17 @@ export function ProductsAdmin() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2"><Field label="Product name"><input value={form.title} onChange={(e) => set('title', e.target.value)} className={inputCls} maxLength={120} /></Field></div>
             <div className="sm:col-span-2"><Field label="Description" hint="Shown on the product page. Be honest about material and finish."><textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={4} className="w-full rounded-lg border border-cream-400 p-3 text-[15px] focus:border-onyx-300 focus:outline-none" /></Field></div>
-            <Field label="Category"><select value={form.category} onChange={(e) => { set('category', e.target.value); set('sub_category', ''); }} className={inputCls}><option value="">Select</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
+            <Field label="Category"><select value={form.category} onChange={(e) => { set('category', e.target.value); set('sub_category', ''); }} className={inputCls}><option value="">Select</option>{withCurrent(catalog.categories, form.category ?? '').map((c) => <option key={c}>{c}</option>)}</select></Field>
             {(() => {
-              const node = TREE[form.category ?? ''] ?? { subs: [] };
+              const node = { subs: catalog.subs[form.category ?? ''] ?? [], types: catalog.types[form.category ?? ''] };
               const [sub, type] = splitSub(form.sub_category ?? '');
               const save = (nsub: string, ntype: string) => set('sub_category', nsub && ntype ? `${nsub}${SEP}${ntype}` : nsub);
               return (<>
                 <Field label="Sub-category"><select value={sub} onChange={(e) => save(e.target.value, '')} className={inputCls} disabled={!form.category}><option value="">None</option>{withCurrent(node.subs, sub).map((c) => <option key={c}>{c}</option>)}</select></Field>
-                {node.types && <Field label="Type" hint="Pick the sub-category first"><select value={type} onChange={(e) => save(sub, e.target.value)} className={inputCls} disabled={!sub}><option value="">None</option>{withCurrent(node.types, type).map((c) => <option key={c}>{c}</option>)}</select></Field>}
+                {(node.types?.length || type) ? <Field label="Type" hint="Pick the sub-category first"><select value={type} onChange={(e) => save(sub, e.target.value)} className={inputCls} disabled={!sub}><option value="">None</option>{withCurrent(node.types, type).map((c) => <option key={c}>{c}</option>)}</select></Field> : null}
               </>);
             })()}
-            <Field label="Occasion"><select value={form.occasion_wear} onChange={(e) => set('occasion_wear', e.target.value)} className={inputCls}><option value="">None</option>{withCurrent(OCCASIONS, form.occasion_wear ?? '').map((c) => <option key={c}>{c}</option>)}</select></Field>
+            <Field label="Occasion"><select value={form.occasion_wear} onChange={(e) => set('occasion_wear', e.target.value)} className={inputCls}><option value="">None</option>{withCurrent(catalog.occasions, form.occasion_wear ?? '').map((c) => <option key={c}>{c}</option>)}</select></Field>
             <Field label="Material" hint="e.g. Brass with 1-gram gold plating"><input value={form.material_type} onChange={(e) => set('material_type', e.target.value)} className={inputCls} /></Field>
             <Field label="Finish"><input value={form.polish_finish} onChange={(e) => set('polish_finish', e.target.value)} className={inputCls} /></Field>
             <Field label="Size / dimensions"><input value={form.dimensions} onChange={(e) => set('dimensions', e.target.value)} className={inputCls} /></Field>
