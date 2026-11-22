@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Activity, Coins, FileText, Gift, Image as ImageIcon, LayoutDashboard, LogOut, Menu, Package, Settings, ShoppingBag, Store, Tag, Undo2, X } from 'lucide-react';
+import { Activity, Coins, FileText, Gift, Image as ImageIcon, Layers, LayoutDashboard, LogOut, Menu, Package, Settings, ShoppingBag, Store, Tag, Undo2, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { DashboardPanel } from '@/components/admin/DashboardPanel';
 import { OrdersPanel } from '@/components/admin/OrdersPanel';
@@ -10,6 +10,7 @@ import { CouponsPanel } from '@/components/admin/CouponsPanel';
 import { ScratchPanel } from '@/components/admin/ScratchPanel';
 import { ReportsPanel } from '@/components/admin/ReportsPanel';
 import { SettingsPanel } from '@/components/admin/SettingsPanel';
+import { CatalogPanel } from '@/components/admin/CatalogPanel';
 import { GoldRatePanel } from '@/components/admin/GoldRatePanel';
 import { HealthPanel } from '@/components/admin/HealthPanel';
 
@@ -18,6 +19,7 @@ const SECTIONS = [
   { id: 'orders', title: 'Orders & delivery', icon: ShoppingBag, hint: 'Track, ship, correct and cancel orders' },
   { id: 'returns', title: 'Returns & refunds', icon: Undo2, hint: 'Review requests, schedule pickups, refund' },
   { id: 'products', title: 'Products', icon: Package, hint: 'Photos, prices and stock' },
+  { id: 'catalog', title: 'Categories', icon: Layers, hint: 'Add or remove categories, sub-categories and occasions' },
   { id: 'hero', title: 'Home banner', icon: ImageIcon, hint: 'Hero photos from Cloudinary' },
   { id: 'coupons', title: 'Coupons', icon: Tag, hint: 'Discount codes' },
   { id: 'scratch', title: 'Scratch cards', icon: Gift, hint: 'Rewards after purchase' },
@@ -80,6 +82,7 @@ export function AdminPage({ onNavigate }: { onNavigate: (page: 'storefront') => 
         {tab === 'orders' && <OrdersPanel />}
         {tab === 'returns' && <ReturnsPanel />}
         {tab === 'products' && <ProductsAdmin />}
+        {tab === 'catalog' && <CatalogPanel />}
         {tab === 'hero' && <HeroMediaManager />}
         {tab === 'coupons' && <CouponsPanel />}
         {tab === 'scratch' && <ScratchPanel />}
