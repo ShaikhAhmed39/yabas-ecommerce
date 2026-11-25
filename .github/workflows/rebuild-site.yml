@@ -1,10 +1,11 @@
 # Keeps the search-engine pages (HTML, sitemap.xml, llms.txt) in step with the shop.
-# Every 30 minutes: if a product changed since the live site was last built, ask Netlify to rebuild.
+# Every 6 hours: if a product changed since the live site was last built AND the last build is over 3 days old, ask Netlify to rebuild.
+# (Netlify's free plan has 300 credits a month and every build costs 15, so rebuilds are rationed. The shop itself always shows live products; only the search-engine copy waits.)
 # Needs 3 repository secrets: NETLIFY_BUILD_HOOK, SUPABASE_URL, SUPABASE_ANON_KEY.
 name: Rebuild site when products change
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '17 */6 * * *'
   workflow_dispatch:
     inputs:
       force:
@@ -40,7 +41,7 @@ jobs:
           age_min = (datetime.now(timezone.utc) - p(info['built_at'])).total_seconds() / 60
           changed = (latest and p(latest) > p(info['latest_product_update'])) or (count.isdigit() and int(count) != info['products'])
           if force == 'true': print('rebuild')
-          elif age_min < 20: print('wait: last build was only %.0f minutes ago' % age_min)
+          elif age_min < 4320: print('wait: last build was only %.0f hours ago (limit is 72)' % (age_min / 60))
           elif changed: print('rebuild')
           else: print('nothing changed')
           PY
