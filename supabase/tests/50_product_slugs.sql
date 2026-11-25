@@ -69,3 +69,12 @@ begin
   assert (select count(*) from public.admin_catalog_options() where kind = 'category') >= 11, 'starting list is there';
   raise notice 'PASS catalogue options';
 end $$;
+
+-- hardening: helper functions are not public; indexes exist
+do $$
+begin
+  assert not has_function_privilege('anon', 'public._cfg_num(text)', 'execute'), 'anon cannot call _cfg_num';
+  assert not has_function_privilege('authenticated', 'public._coupon_quote(text, uuid, text, bigint, boolean)', 'execute'), 'signed-in cannot call _coupon_quote';
+  assert exists (select 1 from pg_indexes where indexname = 'idx_order_items_product'), 'product link index';
+  raise notice 'PASS hardening';
+end $$;
