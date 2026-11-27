@@ -2,7 +2,7 @@
    Payments, login and admin calls are never cached. */
 const SHELL = 'yabas-shell-v2';
 const PHOTOS = 'yabas-photos-v1';
-const PHOTO_HOSTS = ['res.cloudinary.com', '.supabase.co'];
+const PHOTO_HOSTS = ['res.cloudinary.com', '.supabase.co', 'images.yabasjewellers.com'];
 
 // Install: save the home page plus every built file it uses, so the whole shop opens with no internet.
 self.addEventListener('install', (e) => {

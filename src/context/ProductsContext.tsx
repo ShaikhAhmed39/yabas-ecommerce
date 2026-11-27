@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Product } from '@/types';
-import { productImages } from '@/utils/images';
+import { imgVariant, productImages } from '@/utils/images';
 import { prefetchPhotos, readCache, saveCache } from '@/lib/offline';
 
 interface ProductsContextValue {
@@ -32,7 +32,7 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
       const list = (data ?? []) as Product[];
       setProducts(list);
       saveCache('products', list);
-      prefetchPhotos(list.flatMap((p) => productImages(p)));
+      prefetchPhotos(list.flatMap((p) => productImages(p).flatMap((u) => [imgVariant(u, 'sm'), imgVariant(u, 'md')])));
       cached.current = list;
       setError(null);
       lastLoad.current = Date.now();

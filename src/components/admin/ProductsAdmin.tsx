@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { useCatalogOptions } from '@/lib/catalogOptions';
 import { errorMessage } from '@/lib/api';
 import { compressImageToWebP } from '@/utils/imageCompress';
+import { deleteFromR2, uploadToR2 } from '@/utils/r2Upload';
+import { productImages } from '@/utils/images';
 import { calculateDiscount, formatINR } from '@/utils/format';
 import { productImages } from '@/utils/images';
 import { btnDanger, btnGhost, btnPrimary, Card, Field, inputCls, Notice, Toggle } from '@/components/admin/AdminUI';
@@ -69,17 +71,26 @@ export function ProductsAdmin() {
     if (files.length > room) setError(`Only ${MAX_PHOTOS} photos per product. The first ${room} were added.`);
     setUploading(picked.length);
     const urls: string[] = [];
+    const ok: File[] = [];
     for (const file of picked) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setError(`${file.name}: use JPG, PNG or WebP.`); setUploading((n) => n - 1); continue; }
+      if (file.size > 100 * 1024 * 1024) { setError(`${file.name} is larger than 100 MB.`); setUploading((n) => n - 1); continue; }
+      ok.push(file);
+    }
+    // Preferred: Cloudflare R2 (3 sizes per photo). If it is not set up yet, fall back to Supabase Storage.
+    let viaR2: (string | null)[] = ok.map(() => null);
+    try { viaR2 = await uploadToR2(ok); } catch (e) { setError(errorMessage(e, 'A photo could not be uploaded.')); viaR2 = ok.map(() => 'failed'); }
+    for (let i = 0; i < ok.length; i++) {
       try {
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error(`${file.name}: use JPG, PNG or WebP.`);
-        if (file.size > 100 * 1024 * 1024) throw new Error(`${file.name} is larger than 100 MB.`);
-        const blob = await compressImageToWebP(file);
+        if (viaR2[i] === 'failed') continue;
+        if (viaR2[i]) { urls.push(viaR2[i] as string); continue; }
+        const blob = await compressImageToWebP(ok[i]);
         const path = `product-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
         const { error: e } = await supabase.storage.from('product-images').upload(path, blob, { contentType: 'image/webp', upsert: false });
         if (e) throw e;
         urls.push(supabase.storage.from('product-images').getPublicUrl(path).data.publicUrl);
       } catch (e) { setError(errorMessage(e, 'A photo could not be uploaded.')); }
-      setUploading((n) => n - 1);
+      finally { setUploading((n) => n - 1); }
     }
     setForm((f) => ({ ...f, photos: [...f.photos, ...urls] }));
   };
@@ -118,7 +129,7 @@ export function ProductsAdmin() {
   const remove = async (p: Product) => {
     if (!confirm(`Delete “${p.title}”? This cannot be undone. Past orders keep their own copy of the item.`)) return;
     const { error: e } = await supabase.from('products').delete().eq('id', p.id);
-    if (e) setError(errorMessage(e, 'Could not delete. If this product is in past orders, set its stock to 0 instead.')); else { setOk('Product deleted.'); void load(); }
+    if (e) setError(errorMessage(e, 'Could not delete. If this product is in past orders, set its stock to 0 instead.')); else { setOk('Product deleted.'); void deleteFromR2(productImages(p)); void load(); }
   };
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));

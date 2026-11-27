@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { imgVariant } from '@/utils/images';
 import { Heart, Menu, Package, Search, ShoppingBag, User, X, Truck, LogOut, LayoutDashboard, LogIn } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -64,7 +65,7 @@ export function Header({ route, onSignIn }: { route: Route; onSignIn: () => void
           {suggestions.map((p) => (
             <li key={p.id}>
               <a href={productHref(p)} onClick={() => setQ('')} className="flex items-center gap-3 px-3 py-2 text-sm text-ink hover:bg-cream-200">
-                <img src={p.image_url} alt="" className="h-9 w-9 rounded object-cover" />
+                <img src={imgVariant(p.image_url, 'sm')} alt="" className="h-9 w-9 rounded object-cover" />
                 <span className="line-clamp-1">{p.title}</span>
               </a>
             </li>

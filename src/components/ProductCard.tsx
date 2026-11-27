@@ -4,7 +4,7 @@ import type { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { formatINR, calculateDiscount } from '@/utils/format';
-import { PLACEHOLDER_IMG } from '@/utils/images';
+import { imgVariant } from '@/utils/images';
 
 /** Jewel-toned arch panel (teal / maroon alternating) so gold pieces always have strong contrast. */
 export function ProductCard({ product, index = 0 }: { product: Product; index?: number }) {
@@ -22,7 +22,7 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
       <div className="relative overflow-hidden jewel-panel">
         <a href={productHref(product)} aria-label={`View ${product.title}`} className="block aspect-[4/5] w-full">
           <img
-            src={product.image_url || PLACEHOLDER_IMG}
+            src={imgVariant(product.image_url, 'sm')}
             alt={product.title}
             width={400}
             height={500}
