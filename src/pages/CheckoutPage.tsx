@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { imgVariant } from '@/utils/images';
 import { ArrowLeft, Check, ChevronDown, CheckCircle2, Gift, Loader2, Lock, ShieldCheck, Tag, Truck, X } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -235,7 +236,7 @@ export function CheckoutPage({ onSignIn }: { onSignIn: () => void }) {
       <ul className="divide-y divide-gold-500/20">
         {lines.map((l) => (
           <li key={l.product.id} className="flex gap-3 py-3">
-            <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded jewel-panel"><img src={l.product.image_url} alt="" className="h-full w-full object-cover" />
+            <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded jewel-panel"><img src={imgVariant(l.product.image_url, 'sm')} alt="" className="h-full w-full object-cover" />
               <span className="absolute -right-0 -top-0 grid h-5 min-w-5 place-items-center rounded-bl bg-onyx-300 px-1 text-[11px] text-gold-100">{l.quantity}</span></div>
             <div className="min-w-0 flex-1"><p className="line-clamp-2 text-sm text-ink">{l.product.title}</p><p className="text-xs text-ink/60">{formatINR(l.product.selling_price)} each</p></div>
             <p className="text-sm font-medium text-ink">{formatINR(l.line)}</p>
