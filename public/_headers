@@ -1,0 +1,15 @@
+# Cloudflare Pages reads this file (Netlify keeps using netlify.toml).
+# The offline helper must always be re-checked so updates reach visitors.
+/sw.js
+  Cache-Control: no-cache
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Safe security headers for every page. (A strict Content-Security-Policy comes later, in report-only mode first,
+# because Razorpay, Supabase and Cloudinary all need to be allowed.)
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self "https://checkout.razorpay.com" "https://api.razorpay.com")
+  X-Frame-Options: SAMEORIGIN

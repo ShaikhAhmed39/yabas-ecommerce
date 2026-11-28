@@ -192,7 +192,7 @@ ${items.join('\n')}
 }
 
 async function indexNow(urls: string[]) {
-  if (process.env.CONTEXT !== 'production' && process.env.INDEXNOW !== '1') { console.log('[prerender] IndexNow skipped (not a production build)'); return; }
+  if (process.env.CONTEXT !== 'production' && process.env.CF_PAGES_BRANCH !== 'main' && process.env.INDEXNOW !== '1') { console.log('[prerender] IndexNow skipped (not a production build)'); return; }
   const res = await fetch('https://api.indexnow.org/indexnow', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ host: new URL(SITE_URL).host, key: INDEXNOW_KEY, keyLocation: `${SITE_URL}/${INDEXNOW_KEY}.txt`, urlList: urls }),
