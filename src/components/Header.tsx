@@ -58,7 +58,7 @@ export function Header({ route, onSignIn }: { route: Route; onSignIn: () => void
         type="search"
         aria-label="Search jewellery"
         placeholder="Search jhumka, haram, kada…"
-        className="h-11 w-full rounded-sm border border-cream-400 bg-white pl-10 pr-3 text-[15px] text-ink placeholder:text-ink/45 focus:border-gold-400 focus:outline-none"
+        className="h-11 w-full rounded-sm border border-cream-400 bg-white pl-10 pr-3 text-[15px] lg:h-12 lg:rounded-md lg:pl-11 lg:text-base text-ink placeholder:text-ink/45 focus:border-gold-400 focus:outline-none"
       />
       {suggestions.length > 0 && (
         <ul className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-md border border-gold-400/40 bg-cream-50 shadow-medium">
@@ -78,7 +78,7 @@ export function Header({ route, onSignIn }: { route: Route; onSignIn: () => void
   return (
     <header className="sticky top-0 z-40">
       <div className="border-b border-cream-400 bg-cream-100">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-2 sm:px-6 lg:h-[76px] lg:gap-6 lg:px-8">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-2 sm:px-6 lg:h-[76px] lg:gap-8 lg:px-8">
           <button onClick={() => setMenuOpen(true)} className={`${iconBtn} lg:hidden`} aria-label="Open menu"><Menu className="h-6 w-6" /></button>
 
           <a href="/" className="flex flex-1 items-center justify-center gap-3 lg:flex-none lg:justify-start" aria-label="Yaba's Imitation & Jewellery, home">
@@ -89,20 +89,10 @@ export function Header({ route, onSignIn }: { route: Route; onSignIn: () => void
             </span>
           </a>
 
-          <nav className="hidden flex-1 items-center justify-center gap-8 lg:flex" aria-label="Main">
-            {NAV.map((n) => (
-              <a key={n.label} href={n.href}
-                aria-current={n.match && route.name === n.match ? 'page' : undefined}
-                className={`font-display text-[13px] tracking-[0.14em] transition-colors hover:text-gold-500 ${n.match && route.name === n.match ? 'border-b border-ink text-ink' : 'text-ink'}`}>
-                {n.label.toUpperCase()}
-              </a>
-            ))}
-          </nav>
-
-          <div className="hidden w-64 xl:block">{searchBox}</div>
+          <div className="hidden flex-1 lg:block"><div className="mx-auto max-w-2xl">{searchBox}</div></div>
 
           <div className="flex items-center">
-            <button onClick={() => setSearchOpen((v) => !v)} className={`${iconBtn} xl:hidden`} aria-label="Search" aria-expanded={searchOpen}><Search className="h-[22px] w-[22px]" /></button>
+            <button onClick={() => setSearchOpen((v) => !v)} className={`${iconBtn} lg:hidden`} aria-label="Search" aria-expanded={searchOpen}><Search className="h-[22px] w-[22px]" /></button>
             <a href="/wishlist" className={`${iconBtn} hidden sm:grid`} aria-label={`Wishlist, ${wish.ids.size} saved`}>
               <Heart className="h-[22px] w-[22px]" />
               {wish.ids.size > 0 && <span className={badge}>{wish.ids.size}</span>}
@@ -128,7 +118,7 @@ export function Header({ route, onSignIn }: { route: Route; onSignIn: () => void
             </button>
           </div>
         </div>
-        {searchOpen && <div className="px-3 pb-3 xl:hidden">{searchBox}</div>}
+        {searchOpen && <div className="px-3 pb-3 lg:hidden">{searchBox}</div>}
       </div>
       
       {/* Mobile menu */}
